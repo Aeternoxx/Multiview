@@ -333,7 +333,6 @@ function App() {
     const grid = event.currentTarget.closest('.stream-grid') as HTMLElement | null
     if (!card || !grid) return
     const startX = event.clientX
-    const startY = event.clientY
     const rect = card.getBoundingClientRect()
     const ratio = aspectRatios[id] || (rect.width / Math.max(1, rect.height - 72))
     const headerHeight = card.querySelector('.stream-info')?.getBoundingClientRect().height ?? 72
