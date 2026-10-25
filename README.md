@@ -1,112 +1,141 @@
 # MultiView
 
-**MultiView** est une application de bureau Windows permettant de visualiser plusieurs flux vidéo WebRTC dans une interface unique, ou dans des fenêtres flottantes indépendantes.
+**MultiView is a Windows desktop application that lets you watch multiple WebRTC video streams in one interface or in separate, floating windows.**
 
-Conçue avec Electron, React et TypeScript, l'application est particulièrement adaptée à la surveillance de flux vidéo et à leur affichage en parallèle d'autres applications, notamment des jeux en plein écran fenêtré.
+Built with Electron, React, and TypeScript, MultiView is designed for monitoring video streams and keeping them visible alongside other applications, including games running in borderless fullscreen mode.
 
-## ✨ Fonctionnalités
+## ✨ Features
 
-- **Multi-flux vidéo** — regroupez plusieurs flux dans une interface unique.
-- **WebRTC / WHEP** — connexion aux flux compatibles avec le protocole WHEP, notamment ceux exposés par MediaMTX.
-- **Fenêtres flottantes** — détachez un flux dans une fenêtre indépendante pour l'afficher au-dessus de vos autres applications.
-- **Fenêtres toujours au premier plan** — gardez les flux détachés visibles lorsque vous utilisez une autre application.
-- **Redimensionnement intelligent** — conservez les proportions de la vidéo lors du redimensionnement des fenêtres.
-- **Contrôle audio** — réglez le volume ou coupez le son de chaque flux.
-- **Plein écran** — affichez un flux en plein écran.
-- **Gestion des flux** — ajoutez, renommez et supprimez vos sources vidéo.
-- **Indicateur de disponibilité** — vérifiez si un flux est détecté avant de lancer sa lecture.
-- **Retour à l'interface principale** — réintégrez facilement un flux détaché dans MultiView.
-- **Démarrage manuel** — les flux ne démarrent pas automatiquement au lancement de l'application.
-- **Sauvegarde locale** — les sources enregistrées sont conservées localement dans le navigateur intégré à l'application.
+- **Multiple video streams** — View several video streams in a single interface.
+- **WebRTC / WHEP support** — Connect to WHEP-compatible streams, including those provided by MediaMTX.
+- **Floating windows** — Detach individual streams into independent windows.
+- **Always-on-top windows** — Keep detached streams above other applications.
+- **Smart resizing** — Preserve video aspect ratios when resizing floating windows.
+- **Audio controls** — Adjust the volume or mute individual streams.
+- **Fullscreen mode** — Display a stream in fullscreen.
+- **Stream management** — Add, rename, and remove video sources.
+- **Stream availability indicator** — Check whether a stream is detected before starting playback.
+- **Return to the main window** — Easily reattach a detached stream to the main MultiView interface.
+- **Manual playback** — Streams do not start automatically when the application launches.
+- **Local storage** — Saved video sources are stored locally within the application's browser environment.
 
-> **Remarque :** le maintien au premier plan dépend également du comportement du système Windows et du mode d'affichage utilisé par les autres applications. Certains jeux en plein écran exclusif peuvent passer devant les fenêtres flottantes.
+> **Note:** Always-on-top behavior also depends on Windows and the display mode used by other applications. Some games running in exclusive fullscreen mode may appear above floating windows.
 
-## 🖥️ Technologies
+## 📥 Download
 
-- [Electron](https://www.electronjs.org/) — application de bureau
-- [React](https://react.dev/) — interface utilisateur
-- [TypeScript](https://www.typescriptlang.org/) — typage statique
-- [Vite](https://vite.dev/) — environnement de développement et compilation
-- WebRTC / WHEP — transport des flux vidéo
+Prebuilt Windows releases are available on the GitHub Releases page.
 
-## 🚀 Installation et développement
+**[Download the latest release](https://github.com/Aeternoxx/MultiView/releases/latest)**
 
-### Prérequis
+Choose the version that suits your needs:
+
+- **Windows Installer** — Install MultiView on your computer.
+- **Portable Version** — Run MultiView without a traditional installation, if a portable build is included in the release.
+
+Check the release notes for version-specific changes and fixes.
+
+## 📺 Adding a video stream
+
+1. Open MultiView.
+2. Add a video source by entering its WHEP URL.
+3. Save the source.
+4. Start playback manually.
+5. Detach the stream into a floating window if you want to keep it visible while using another application.
+
+A WHEP URL points to a WebRTC HTTP signaling endpoint. For example, a MediaMTX server might expose an endpoint such as:
+
+```text
+https://example.com/stream/whep
+```
+
+This is only an example. The exact endpoint depends on your server configuration.
+
+The server must support WHEP and be reachable from the computer running MultiView. Network connectivity, TLS certificates, firewall rules, and server-side security requirements still apply.
+
+## 🖥️ Built with
+
+- [Electron](https://www.electronjs.org/) — Desktop application framework
+- [React](https://react.dev/) — User interface
+- [TypeScript](https://www.typescriptlang.org/) — Type-safe JavaScript
+- [Vite](https://vite.dev/) — Development server and build tooling
+- WebRTC / WHEP — Video streaming and signaling
+
+## 🛠️ Development
+
+### Requirements
 
 - Windows
-- [Node.js](https://nodejs.org/) — version LTS recommandée
-- npm, fourni avec Node.js
-- Git, si vous souhaitez récupérer le projet depuis son dépôt
+- [Node.js](https://nodejs.org/) — LTS version recommended
+- npm, included with Node.js
+- Git, if you want to clone the repository
 
-### Récupérer le code source
+### Clone the repository
 
 ```bash
 git clone https://github.com/Aeternoxx/MultiView.git
 cd MultiView
 ```
 
-### Installer les dépendances
+### Install dependencies
 
 ```bash
 npm install
 ```
 
-### Lancer l'application en mode développement
+### Start in development mode
 
 ```bash
 npm run dev
 ```
 
-Vite et Electron démarrent alors l'environnement de développement configuré par le projet.
+Vite and Electron will start the development environment configured for the project.
 
-## 📺 Ajouter un flux vidéo
+### Build for Windows
 
-1. Ouvrez MultiView.
-2. Ajoutez une source vidéo en renseignant son adresse WHEP.
-3. Enregistrez la source.
-4. Lancez la lecture manuellement.
-5. Détachez le flux dans une fenêtre flottante si vous souhaitez le conserver visible pendant que vous utilisez une autre application.
+Available build commands and packaging options are defined in `package.json`.
 
-Une adresse WHEP correspond généralement à un point d'accès dédié à la signalisation WebRTC. Par exemple, un serveur MediaMTX peut exposer un endpoint WHEP sous une forme telle que :
+Use the project's configured npm scripts to generate Windows distribution packages. Depending on the packaging configuration, these may include an installer and a portable executable.
 
-```text
-https://example.com/stream/whep
-```
+Packaged builds can be published on the GitHub Releases page without adding compiled binaries to the source repository.
 
-Cette adresse est uniquement illustrative : l'endpoint exact dépend de la configuration du serveur.
+## 🔒 Privacy
 
-Le serveur doit prendre en charge WHEP et être accessible depuis la machine exécutant MultiView. Les exigences réseau, TLS et de sécurité du serveur restent applicables.
+MultiView stores saved video sources locally on the user's computer.
 
-## 🔒 Confidentialité
+When configuring video sources, keep in mind that stream URLs may contain private information, authentication tokens, or other sensitive data.
 
-Les sources enregistrées par l'application sont stockées localement sur la machine de l'utilisateur.
+Please do not publish private stream URLs, credentials, access tokens, or personal information in bug reports, screenshots, or source code.
 
-Ce dépôt public ne doit contenir aucune adresse de flux privée, aucun identifiant, aucun mot de passe ni aucune autre information personnelle.
+Before submitting changes, check that no sensitive information has been included accidentally.
 
-Avant de publier une modification, vérifiez les URL et les éventuelles données sensibles présentes dans le code source.
+## 🤝 Contributing
 
-## 🛠️ Compilation
+Bug reports, suggestions, and contributions are welcome.
 
-Le projet utilise Electron et Vite. Les commandes de développement et de compilation disponibles sont définies dans `package.json`.
+When reporting a problem, please include as much relevant information as possible:
 
-La génération d'un installateur Windows ou d'une version portable nécessite une configuration de packaging adaptée au projet.
+- Your Windows version.
+- The MultiView version you are using.
+- The steps required to reproduce the issue.
+- The type of video server you are using, such as MediaMTX.
+- Relevant error messages or logs, with private information removed.
 
-Les exécutables distribués peuvent être publiés séparément dans la section **Releases** de GitHub, afin de garder le dépôt source léger.
+Please avoid sharing private stream URLs, credentials, or access tokens in public issues.
 
-## 🤝 Contributions
+## ☕ Support MultiView
 
-Les suggestions, rapports de bugs et contributions sont les bienvenus.
+MultiView is developed as a freely available project. If you find it useful, you can help support its continued development with an optional tip.
 
-Pour signaler un problème, indiquez si possible :
+Your support is appreciated and helps make time for bug fixes, maintenance, and future improvements.
 
-- La version de Windows utilisée.
-- Les étapes permettant de reproduire le problème.
-- Le type de serveur vidéo utilisé.
-- Les messages d'erreur pertinents, en prenant soin de masquer les informations privées.
+**[☕ Support MultiView on Ko-fi](https://ko-fi.com/aeternoxx)**
 
-## 📄 Licence
+Donations are entirely optional. You can use MultiView without making a contribution.
 
-La licence du projet reste à définir.
+## 📄 License
 
-Tant qu'une licence n'a pas été ajoutée au dépôt, ne supposez pas que le code peut être librement redistribué ou modifié selon les conditions d'une licence open source.
+The project's license has not yet been specified.
 
+Until a license is added to the repository, the code should not be assumed to be freely redistributable or modifiable under open-source licensing terms.
+
+See the repository for the current licensing status.
