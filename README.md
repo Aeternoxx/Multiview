@@ -45,8 +45,6 @@ git clone https://github.com/Aeternoxx/MultiView.git
 cd MultiView
 ```
 
-Remplacez `TON-COMPTE` par le nom du compte ou de l'organisation GitHub qui héberge le dépôt.
-
 ### Installer les dépendances
 
 ```bash
