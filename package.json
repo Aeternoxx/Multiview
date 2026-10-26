@@ -1,9 +1,9 @@
 {
-  "name": "multiview-clean",
-  "version": "1.0.0",
-  "description": "An Electron application with React and TypeScript",
+  "name": "multiview",
+  "version": "1.1.0",
+  "description": "MultiView — floating multi-stream WHEP/WebRTC viewer",
   "main": "./out/main/index.js",
-  "author": "example.com",
+  "author": "MultiView",
   "homepage": "https://electron-vite.org",
   "scripts": {
     "format": "prettier --write .",
