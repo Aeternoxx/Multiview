@@ -1,114 +1,145 @@
 # MultiView
 
-**MultiView** est une application de bureau Windows permettant de visualiser plusieurs flux vidéo WebRTC dans une interface unique, ou dans des fenêtres flottantes indépendantes.
+**MultiView lets you watch your friends' OBS streams while gaming, using floating video windows displayed over your game.**
 
-Conçue avec Electron, React et TypeScript, l'application est particulièrement adaptée à la surveillance de flux vidéo et à leur affichage en parallèle d'autres applications, notamment des jeux en plein écran fenêtré.
+Connect to your friends' **OBS streams shared through MediaMTX**, detach each stream into a floating window, and watch everyone's point of view simultaneously without leaving your game.
 
-## ✨ Fonctionnalités
+MultiView is a Windows desktop application built with Electron, React, and TypeScript. It supports WebRTC streams through WHEP.
 
-- **Multi-flux vidéo** — regroupez plusieurs flux dans une interface unique.
-- **WebRTC / WHEP** — connexion aux flux compatibles avec le protocole WHEP, notamment ceux exposés par MediaMTX.
-- **Fenêtres flottantes** — détachez un flux dans une fenêtre indépendante pour l'afficher au-dessus de vos autres applications.
-- **Fenêtres toujours au premier plan** — gardez les flux détachés visibles lorsque vous utilisez une autre application.
-- **Redimensionnement intelligent** — conservez les proportions de la vidéo lors du redimensionnement des fenêtres.
-- **Contrôle audio** — réglez le volume ou coupez le son de chaque flux.
-- **Plein écran** — affichez un flux en plein écran.
-- **Gestion des flux** — ajoutez, renommez et supprimez vos sources vidéo.
-- **Indicateur de disponibilité** — vérifiez si un flux est détecté avant de lancer sa lecture.
-- **Retour à l'interface principale** — réintégrez facilement un flux détaché dans MultiView.
-- **Démarrage manuel** — les flux ne démarrent pas automatiquement au lancement de l'application.
-- **Sauvegarde locale** — les sources enregistrées sont conservées localement dans le navigateur intégré à l'application.
+## ✨ Features
 
-> **Remarque :** le maintien au premier plan dépend également du comportement du système Windows et du mode d'affichage utilisé par les autres applications. Certains jeux en plein écran exclusif peuvent passer devant les fenêtres flottantes.
+- **Multiple streams** — Watch several friends' views simultaneously.
+- **Floating windows** — Keep individual streams visible over your game.
+- **Always on top** — Keep detached streams above other windows.
+- **Audio controls** — Adjust or mute each stream individually.
+- **Flexible viewing** — Resize windows, preserve aspect ratios, or switch to fullscreen.
+- **Stream management** — Add, rename, remove, and reattach streams.
+- **Manual playback** — Start streams whenever you're ready.
+- **Local storage** — Your saved stream sources stay on your computer.
 
-## 🖥️ Technologies
+> **Note:** Some games running in exclusive fullscreen mode may appear above floating windows. Borderless fullscreen is recommended.
 
-- [Electron](https://www.electronjs.org/) — application de bureau
-- [React](https://react.dev/) — interface utilisateur
-- [TypeScript](https://www.typescriptlang.org/) — typage statique
-- [Vite](https://vite.dev/) — environnement de développement et compilation
-- WebRTC / WHEP — transport des flux vidéo
+## 📥 Download
 
-## 🚀 Installation et développement
+**[Download the latest release](https://github.com/Aeternoxx/MultiView/releases/latest)**
 
-### Prérequis
+Choose the Windows installer or the portable version, if available in the release.
 
-- Windows
-- [Node.js](https://nodejs.org/) — version LTS recommandée
-- npm, fourni avec Node.js
-- Git, si vous souhaitez récupérer le projet depuis son dépôt
+## 🚀 Getting started
 
-### Récupérer le code source
+1. Make sure your friends are sharing their OBS streams through a compatible server, such as MediaMTX.
+2. Open MultiView and add a stream using its WHEP URL.
+3. Start playback.
+4. Detach the stream into a floating window.
+5. Repeat for each friend and enjoy watching everyone's view while you play!
+
+Example WHEP endpoint:
+
+`https://example.com/stream/whep`
+
+The actual URL depends on the server configuration. The server must support WHEP and be reachable from your computer.
+
+## 🛠️ Development
+
+Requirements: Windows, [Node.js (LTS)](https://nodejs.org/) and npm.
 
 ```bash
 git clone https://github.com/Aeternoxx/MultiView.git
 cd MultiView
-```
-
-Remplacez `TON-COMPTE` par le nom du compte ou de l'organisation GitHub qui héberge le dépôt.
-
-### Installer les dépendances
-
-```bash
 npm install
-```
-
-### Lancer l'application en mode développement
-
-```bash
 npm run dev
 ```
 
-Vite et Electron démarrent alors l'environnement de développement configuré par le projet.
+Build commands are defined in `package.json`.
 
-## 📺 Ajouter un flux vidéo
+## 🔒 Privacy
 
-1. Ouvrez MultiView.
-2. Ajoutez une source vidéo en renseignant son adresse WHEP.
-3. Enregistrez la source.
-4. Lancez la lecture manuellement.
-5. Détachez le flux dans une fenêtre flottante si vous souhaitez le conserver visible pendant que vous utilisez une autre application.
+Saved stream sources are stored locally. Stream URLs may contain private information or access tokens, so remove sensitive data before sharing logs, screenshots, or bug reports.
 
-Une adresse WHEP correspond généralement à un point d'accès dédié à la signalisation WebRTC. Par exemple, un serveur MediaMTX peut exposer un endpoint WHEP sous une forme telle que :
+## 🤝 Contributing
 
-```text
-https://example.com/stream/whep
+Bug reports, suggestions, and contributions are welcome. Please include your MultiView version, Windows version, reproduction steps, and relevant logs. Remove private URLs and credentials before posting.
+
+## ☕ Support the project
+
+If you find MultiView useful, you can help support its development with an optional donation.
+
+**[☕ Support MultiView on Ko-fi](https://ko-fi.com/aeternoxx)**
+
+## 📄 License
+
+No license has been specified yet. Until one is added, the code should not be assumed to be available for unrestricted use, modification, or redistribution.
+
+---
+
+# MultiView (Français)
+
+**MultiView permet d'afficher les flux OBS de tes amis dans des fenêtres flottantes par-dessus ton jeu.**
+
+Connecte-toi aux **flux OBS de tes amis diffusés via MediaMTX**, détache chaque flux dans une fenêtre indépendante et regarde leurs différents points de vue simultanément, sans quitter ton jeu.
+
+MultiView est une application Windows développée avec Electron, React et TypeScript. Elle prend en charge les flux WebRTC via WHEP.
+
+## ✨ Fonctionnalités
+
+- **Flux multiples** — Regarde simultanément les vues de plusieurs amis.
+- **Fenêtres flottantes** — Garde les flux visibles par-dessus ton jeu.
+- **Toujours au premier plan** — Maintiens les fenêtres au-dessus des autres applications.
+- **Contrôle audio** — Règle ou coupe le son de chaque flux indépendamment.
+- **Affichage flexible** — Redimensionne les fenêtres, conserve les proportions ou passe en plein écran.
+- **Gestion des flux** — Ajoute, renomme, supprime et réintègre les flux dans la fenêtre principale.
+- **Lecture manuelle** — Lance les flux quand tu le souhaites.
+- **Stockage local** — Les sources enregistrées restent sur ton ordinateur.
+
+> **À noter :** Certains jeux en plein écran exclusif peuvent passer devant les fenêtres flottantes. Le mode plein écran sans bordure est recommandé.
+
+## 📥 Téléchargement
+
+**[Télécharger la dernière version](https://github.com/Aeternoxx/MultiView/releases/latest)**
+
+Choisis l'installateur Windows ou la version portable, si elle est disponible dans la release.
+
+## 🚀 Prise en main
+
+1. Assure-toi que tes amis diffusent leurs flux OBS via un serveur compatible, comme MediaMTX.
+2. Ouvre MultiView et ajoute un flux avec son URL WHEP.
+3. Lance la lecture.
+4. Détache le flux dans une fenêtre flottante.
+5. Répète l'opération pour chaque ami et profite de leurs différents points de vue pendant que tu joues !
+
+Exemple d'endpoint WHEP :
+
+`https://example.com/stream/whep`
+
+L'URL exacte dépend de la configuration du serveur. Celui-ci doit prendre en charge WHEP et être accessible depuis ton ordinateur.
+
+## 🛠️ Développement
+
+Prérequis : Windows, [Node.js (LTS)](https://nodejs.org/) et npm.
+
+```bash
+git clone https://github.com/Aeternoxx/MultiView.git
+cd MultiView
+npm install
+npm run dev
 ```
 
-Cette adresse est uniquement illustrative : l'endpoint exact dépend de la configuration du serveur.
-
-Le serveur doit prendre en charge WHEP et être accessible depuis la machine exécutant MultiView. Les exigences réseau, TLS et de sécurité du serveur restent applicables.
+Les commandes de compilation sont définies dans `package.json`.
 
 ## 🔒 Confidentialité
 
-Les sources enregistrées par l'application sont stockées localement sur la machine de l'utilisateur.
-
-Ce dépôt public ne doit contenir aucune adresse de flux privée, aucun identifiant, aucun mot de passe ni aucune autre information personnelle.
-
-Avant de publier une modification, vérifiez les URL et les éventuelles données sensibles présentes dans le code source.
-
-## 🛠️ Compilation
-
-Le projet utilise Electron et Vite. Les commandes de développement et de compilation disponibles sont définies dans `package.json`.
-
-La génération d'un installateur Windows ou d'une version portable nécessite une configuration de packaging adaptée au projet.
-
-Les exécutables distribués peuvent être publiés séparément dans la section **Releases** de GitHub, afin de garder le dépôt source léger.
+Les sources enregistrées sont stockées localement. Les URL des flux peuvent contenir des informations privées ou des jetons d'accès : pense à les retirer des journaux, captures d'écran et rapports de bugs que tu partages.
 
 ## 🤝 Contributions
 
-Les suggestions, rapports de bugs et contributions sont les bienvenus.
+Les signalements de bugs, suggestions et contributions sont les bienvenus. Indique la version de MultiView, ta version de Windows, les étapes pour reproduire le problème et les journaux utiles. Retire les URL privées et les identifiants avant de publier.
 
-Pour signaler un problème, indiquez si possible :
+## ☕ Soutenir le projet
 
-- La version de Windows utilisée.
-- Les étapes permettant de reproduire le problème.
-- Le type de serveur vidéo utilisé.
-- Les messages d'erreur pertinents, en prenant soin de masquer les informations privées.
+Si MultiView te plaît, tu peux soutenir son développement avec un don facultatif.
+
+**[☕ Soutenir MultiView sur Ko-fi](https://ko-fi.com/aeternoxx)**
 
 ## 📄 Licence
 
-La licence du projet reste à définir.
-
-Tant qu'une licence n'a pas été ajoutée au dépôt, ne supposez pas que le code peut être librement redistribué ou modifié selon les conditions d'une licence open source.
-
+Aucune licence n'a encore été spécifiée. Tant qu'une licence n'est pas ajoutée, le code ne doit pas être considéré comme librement réutilisable, modifiable ou redistribuable.

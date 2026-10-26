@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import './assets/main.css'
+import appLogo from '../../../resources/icon.png'
 
 type Stream = { id: number; name: string; url: string }
 type Availability = 'checking' | 'online' | 'offline'
@@ -83,7 +84,7 @@ function readSavedStreams(): Stream[] {
 }
 
 function StreamPlayer({
-  stream, onRemove, onRename, onDetach, minimal = false, style, onResizeStart, onReturnToApp, onAspectRatio, videoAspectRatio, initiallyRunning = false, onInitialRunConsumed,
+  stream, onRemove, onRename, onDetach, minimal = false, style, onResizeStart, onReturnToApp, onAspectRatio, videoAspectRatio, initiallyRunning = false, onInitialRunConsumed, language = 'FR',
 }: {
   stream: Stream
   onRemove?: (id: number) => void
@@ -97,7 +98,14 @@ function StreamPlayer({
   videoAspectRatio?: number
   initiallyRunning?: boolean
   onInitialRunConsumed?: (id: number) => void
+  language?: 'FR' | 'EN'
 }) {
+  const t = (fr: string, en: string) => language === 'FR' ? fr : en
+  const statusText = (value: string) => {
+    if (language === 'FR') return value
+    const translations: Record<string, string> = { 'Arrêté': 'Stopped', 'Flux indisponible': 'Stream unavailable', 'Connecté · WHEP': 'Connected · WHEP', 'Connexion WebRTC…': 'Connecting WebRTC…', 'Connexion interrompue': 'Connection interrupted', 'Échec WebRTC': 'WebRTC failed', 'Préparation du flux…': 'Preparing stream…', 'Connexion au serveur WHEP…': 'Connecting to WHEP server…', 'Négociation terminée, attente du flux…': 'Negotiation complete, waiting for stream…', 'Erreur de connexion': 'Connection error', 'Clique sur lecture pour démarrer le son/la vidéo': 'Click play to start audio/video' }
+    return translations[value] ?? value
+  }
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
@@ -111,8 +119,9 @@ function StreamPlayer({
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [draftName, setDraftName] = useState(stream.name)
+  const [draftUrl, setDraftUrl] = useState(stream.url)
 
-  useEffect(() => setDraftName(stream.name), [stream.name])
+  useEffect(() => { setDraftName(stream.name); setDraftUrl(stream.url) }, [stream.name, stream.url])
 
   // Periodically verify that WHEP can actually deliver a video frame.
   useEffect(() => {
@@ -235,8 +244,9 @@ function StreamPlayer({
 
   const saveName = () => {
     const cleanName = draftName.trim()
-    if (cleanName && cleanName !== stream.name) onRename?.({ ...stream, name: cleanName })
-    else setDraftName(stream.name)
+    const cleanUrl = draftUrl.trim()
+    if (cleanName && cleanUrl && (cleanName !== stream.name || cleanUrl !== stream.url)) onRename?.({ ...stream, name: cleanName, url: cleanUrl })
+    else { setDraftName(stream.name); setDraftUrl(stream.url) }
     setEditing(false)
   }
 
@@ -245,17 +255,17 @@ function StreamPlayer({
       {!minimal && <div className="stream-info">
         <div className="stream-details">
           {editing ? <form className="rename-form" onSubmit={(event) => { event.preventDefault(); saveName() }}>
-            <input autoFocus value={draftName} aria-label="Nom du flux" onChange={(event) => setDraftName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') { setDraftName(stream.name); setEditing(false) } }} onBlur={saveName} />
+            <input autoFocus value={draftName} aria-label={t('Nom du flux', 'Stream name')} onChange={(event) => setDraftName(event.target.value)} placeholder={t('Nom', 'Name')} /><input value={draftUrl} aria-label={t('URL du flux WHEP', 'WHEP stream URL')} onChange={(event) => setDraftUrl(event.target.value)} placeholder={t('URL WHEP', 'WHEP URL')} /><button type="submit">✓</button><button type="button" onClick={() => { setDraftName(stream.name); setDraftUrl(stream.url); setEditing(false) }}>×</button>
           </form> : <h3>{stream.name}</h3>}
           <p title={stream.url}>{stream.url}</p>
-          <div className="status-line"><span className={`availability-dot ${availability}`} title={availability === 'online' ? 'Serveur disponible' : availability === 'offline' ? 'Serveur indisponible' : 'Vérification en cours'} /><span className="stream-status">{isRunning ? status : 'Arrêté · ' + (availability === 'online' ? 'flux détecté' : availability === 'offline' ? 'flux absent' : 'test en cours')}</span></div>
+          <div className="status-line"><span className={`availability-dot ${availability}`} title={availability === 'online' ? t('Serveur disponible', 'Server available') : availability === 'offline' ? t('Serveur indisponible', 'Server unavailable') : t('Vérification en cours', 'Checking')} /><span className="stream-status">{isRunning ? statusText(status) : t('Arrêté · ', 'Stopped · ') + (availability === 'online' ? t('flux détecté', 'stream detected') : availability === 'offline' ? t('flux absent', 'stream unavailable') : t('test en cours', 'checking'))}</span></div>
           {error && <p className="player-error inline-error">{error}</p>}
         </div>
         <div className="stream-actions">
-          <button className="icon-button" disabled={!isRunning && availability !== 'online'} onClick={() => { if (isRunning) setIsRunning(false); else if (availability === 'online') { setError(''); setIsRunning(true) } }} title={isRunning ? 'Arrêter le flux' : availability === 'online' ? 'Lancer le flux' : 'Le flux doit être détecté avant la lecture'} aria-label={isRunning ? 'Arrêter le flux' : 'Lancer le flux'}>{isRunning ? '■' : '▶'}</button>
-          {!editing && onRename && <button className="icon-button" onClick={() => setEditing(true)} title="Renommer le flux" aria-label="Renommer le flux">✎</button>}
-          {onDetach && <button className="icon-button" onClick={() => onDetach(stream)} title="Ouvrir dans une fenêtre Windows" aria-label="Détacher le flux">↗</button>}
-          {onRemove && <button className="delete-button" onClick={() => onRemove(stream.id)} aria-label={`Supprimer ${stream.name}`} title="Supprimer ce flux"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5" /></svg></button>}
+          <button className="icon-button" disabled={!isRunning && availability !== 'online'} onClick={() => { if (isRunning) setIsRunning(false); else if (availability === 'online') { setError(''); setIsRunning(true) } }} title={isRunning ? t('Arrêter le flux', 'Stop stream') : availability === 'online' ? t('Lancer le flux', 'Start stream') : t('Le flux doit être détecté avant la lecture', 'The stream must be detected before playback')} aria-label={isRunning ? t('Arrêter le flux', 'Stop stream') : t('Lancer le flux', 'Start stream')}>{isRunning ? '■' : '▶'}</button>
+          {!editing && onRename && <button className="icon-button" onClick={() => setEditing(true)} title={t('Modifier le flux', 'Edit stream')} aria-label={t('Modifier le flux', 'Edit stream')}>✎</button>}
+          {onDetach && <button className="icon-button" onClick={() => onDetach(stream)} title={t('Ouvrir dans une fenêtre flottante', 'Open in floating window')} aria-label={t('Détacher le flux', 'Detach stream')}>↗</button>}
+          {onRemove && <button className="delete-button" onClick={() => onRemove(stream.id)} aria-label={`${t('Supprimer', 'Delete')} ${stream.name}`} title={t('Supprimer ce flux', 'Delete this stream')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5" /></svg></button>}
         </div>
       </div>}
       <div className={`video-container${minimal ? ' popup-video-container' : ''}${style?.height ? ' sized-video-container' : ''}`} style={!minimal && !style?.height ? { aspectRatio: videoAspectRatio ? String(videoAspectRatio) : '16 / 9' } : undefined} ref={containerRef}>
@@ -263,13 +273,13 @@ function StreamPlayer({
           const video = event.currentTarget
           if (video.videoWidth > 0 && video.videoHeight > 0) onAspectRatio?.(stream.id, video.videoWidth / video.videoHeight)
         }} onLoadedData={() => { setHasVideo(true); setAvailability('online'); setError('') }} onError={() => { /* WHEP negotiation supplies the useful error. */ }} onClick={() => { if (videoRef.current && isRunning) void videoRef.current.play() }} />
-        {!minimal && !isRunning && <div className="player-overlay idle-overlay"><span className="video-symbol">{availability === 'online' ? '▶' : '!'}</span><span>{availability === 'online' ? 'Flux disponible' : availability === 'offline' ? 'Flux indisponible' : 'Vérification du flux…'}</span><button className="overlay-action" onClick={() => setIsRunning(true)}>▶ Lancer le flux</button></div>}
-        {!minimal && isRunning && !hasVideo && <div className="player-overlay"><span className="video-symbol">▶</span><span>{status}</span>{error && <p className="player-error">{error}</p>}</div>}
-        {!minimal && <div className="view-controls"><button type="button" onClick={() => void toggleFullscreen()}>{isFullscreen ? '⤢ Quitter le plein écran' : '⛶ Plein écran'}</button></div>}
-        <div className={`audio-controls${minimal ? ' popup-audio-controls' : ''}`} title="Volume"><button type="button" className="mute-button" onClick={() => setMuted((current) => !current)} title={muted ? 'Activer le son' : 'Couper le son'}>{muted || volume === 0 ? '🔇' : '🔊'}</button><input aria-label={`Volume de ${stream.name}`} type="range" min="0" max="100" value={volume} onChange={(event) => { setVolume(Number(event.target.value)); if (Number(event.target.value) > 0) setMuted(false) }} /></div>
-        {minimal && <div className="popup-return-wrap"><button className="popup-return-button" onClick={() => onReturnToApp?.(stream.id)}>↩ Retour dans MultiView</button></div>}
+        {!minimal && !isRunning && <div className="player-overlay idle-overlay"><span className="video-symbol">{availability === 'online' ? '▶' : '!'}</span><span>{availability === 'online' ? t('Flux disponible', 'Stream available') : availability === 'offline' ? t('Flux indisponible', 'Stream unavailable') : t('Vérification du flux…', 'Checking stream…')}</span>{availability === 'online' && <button className="overlay-action" onClick={() => { setError(''); setIsRunning(true) }}>▶ {t('Lancer le flux', 'Start stream')}</button>}</div>}
+        {!minimal && isRunning && !hasVideo && <div className="player-overlay"><span className="video-symbol">▶</span><span>{statusText(status)}</span>{error && <p className="player-error">{error}</p>}</div>}
+        {!minimal && <div className="view-controls"><button type="button" onClick={() => void toggleFullscreen()}>{isFullscreen ? `⤢ ${t('Quitter le plein écran', 'Exit fullscreen')}` : `⛶ ${t('Plein écran', 'Fullscreen')}`}</button></div>}
+        <div className={`audio-controls${minimal ? ' popup-audio-controls' : ''}`} title={t('Volume', 'Volume')}><button type="button" className="mute-button" onClick={() => setMuted((current) => !current)} title={muted ? t('Activer le son', 'Unmute') : t('Couper le son', 'Mute')}>{muted || volume === 0 ? '🔇' : '🔊'}</button><input aria-label={`${t('Volume de', 'Volume for')} ${stream.name}`} type="range" min="0" max="100" value={volume} onChange={(event) => { setVolume(Number(event.target.value)); if (Number(event.target.value) > 0) setMuted(false) }} /></div>
+        {minimal && <div className="popup-return-wrap"><button className="popup-return-button" onClick={() => onReturnToApp?.(stream.id)}>↩ {t('Retour dans MultiView', 'Return to MultiView')}</button></div>}
       </div>
-      {!minimal && onResizeStart && <button type="button" className="resize-grip" aria-label={`Redimensionner ${stream.name}`} title="Redimensionner en conservant le ratio vidéo" onPointerDown={(event) => onResizeStart(event, stream.id)} />}
+      {!minimal && onResizeStart && <button type="button" className="resize-grip" aria-label={`${t('Redimensionner', 'Resize')} ${stream.name}`} title={t('Redimensionner en conservant le ratio vidéo', 'Resize while preserving video aspect ratio')} onPointerDown={(event) => onResizeStart(event, stream.id)} />}
     </article>
   )
 }
@@ -280,6 +290,9 @@ function App() {
   const popupStream: Stream | null = isPopup ? { id: Number(query.get('streamId') || Date.now()), name: query.get('streamName') || 'Flux détaché', url: query.get('streamUrl') || '' } : null
   const [streams, setStreams] = useState<Stream[]>(readSavedStreams)
   const [url, setUrl] = useState('')
+  const [streamName, setStreamName] = useState('')
+  const [language, setLanguage] = useState<'FR' | 'EN'>(() => (localStorage.getItem('multiview-language') === 'EN' ? 'EN' : 'FR'))
+  const [draggedId, setDraggedId] = useState<number | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [tileSizes, setTileSizes] = useState<Record<number, TileSize>>({})
   const [aspectRatios, setAspectRatios] = useState<Record<number, number>>({})
@@ -306,6 +319,8 @@ function App() {
     if (isPopup) void window.api.setStreamWindowAspectRatio(id, ratio)
   }, [isPopup])
 
+  useEffect(() => { if (!isPopup) localStorage.setItem('multiview-language', language) }, [language, isPopup])
+
   const addStream = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const cleanUrl = url.trim()
@@ -313,19 +328,22 @@ function App() {
     const usedNumbers = new Set(streams.map((stream) => { const match = stream.name.match(/^Flux\s+(\d+)$/i); return match ? Number(match[1]) : 0 }))
     let number = 1
     while (usedNumbers.has(number)) number += 1
-    setStreams((current) => [...current, { id: Date.now(), name: `Flux ${number}`, url: cleanUrl }])
+    setStreams((current) => [...current, { id: Date.now(), name: streamName.trim() || `Flux ${number}`, url: cleanUrl }])
     setUrl('')
+    setStreamName('')
     setShowForm(false)
   }
   const removeStream = (id: number) => {
     const target = streams.find((stream) => stream.id === id)
-    if (!target || !window.confirm(`Supprimer « ${target.name} » ?\nCette action retirera le flux de MultiView.`)) return
+    if (!target || !window.confirm(t(`Supprimer « ${target.name} » ?\nCette action retirera le flux de MultiView.`, `Delete “${target.name}”?\nThis will remove the stream from MultiView.`))) return
     if (detachedIds.includes(id)) void window.api.closeStreamWindow(id)
     setStreams((current) => current.filter((stream) => stream.id !== id))
     setTileSizes((current) => { const next = { ...current }; delete next[id]; return next })
     setAspectRatios((current) => { const next = { ...current }; delete next[id]; return next })
   }
-  const renameStream = (updated: Stream) => setStreams((current) => current.map((stream) => stream.id === updated.id ? { ...stream, name: updated.name } : stream))
+  const renameStream = (updated: Stream) => setStreams((current) => current.map((stream) => stream.id === updated.id ? { ...stream, name: updated.name, url: updated.url } : stream))
+  const reorderStream = (targetId: number) => { if (draggedId === null || draggedId === targetId) return; setStreams(current => { const from = current.findIndex(item => item.id === draggedId); const to = current.findIndex(item => item.id === targetId); if (from < 0 || to < 0) return current; const next = [...current]; const [item] = next.splice(from, 1); next.splice(to, 0, item); return next }); setDraggedId(null) }
+  const t = (fr: string, en: string) => language === 'FR' ? fr : en
 
   const startResize = (event: ReactPointerEvent<HTMLButtonElement>, id: number) => {
     event.preventDefault(); event.stopPropagation()
@@ -352,14 +370,14 @@ function App() {
     setDetachedIds((current) => current.includes(stream.id) ? current : [...current, stream.id])
   }
 
-  if (isPopup && popupStream) return <main className="popup-app"><StreamPlayer stream={popupStream} minimal onReturnToApp={(id) => void window.api.returnToApp(id)} onAspectRatio={reportAspectRatio} /></main>
+  if (isPopup && popupStream) return <main className="popup-app"><StreamPlayer stream={popupStream} language={language} minimal onReturnToApp={(id) => void window.api.returnToApp(id)} onAspectRatio={reportAspectRatio} /></main>
 
   return <main className="app">
-    <header className="topbar"><div className="brand"><div className="brand-icon">M</div><div><h1>MultiView</h1><p>Lecteur de flux WHEP / WebRTC</p></div></div><div className="topbar-actions"><span className="status"><span className="status-dot" />Prêt</span><button className="primary-button" onClick={() => setShowForm((current) => !current)}>+ Ajouter un flux</button></div></header>
-    {showForm && <form className="add-form" onSubmit={addStream}><label htmlFor="stream-url">URL du flux WHEP</label><div className="form-row"><input id="stream-url" type="url" placeholder="https://serveur.example.com/camera/whep" value={url} onChange={(event) => setUrl(event.target.value)} autoFocus required /><button className="primary-button" type="submit">Ajouter</button><button className="secondary-button" type="button" onClick={() => setShowForm(false)}>Annuler</button></div><p className="form-hint">Les flux ne démarrent pas automatiquement. Le voyant indique si le serveur répond.</p></form>}
-    <section className="workspace"><div className="section-heading"><div><h2>Vue principale</h2><p>{streams.length} flux configuré{streams.length > 1 ? 's' : ''}</p></div></div>
-      {streams.length === 0 ? <div className="empty-state"><div className="empty-icon">▦</div><h2>Votre espace vidéo est prêt</h2><p>Ajoutez un flux WHEP pour commencer.</p><button className="primary-button" onClick={() => setShowForm(true)}>+ Ajouter votre premier flux</button></div> : <div className="stream-grid">{streams.map((stream) => detachedIds.includes(stream.id) ? <article className="stream-card detached-card" key={stream.id}><div className="detached-message"><span className="availability-dot online" /><strong>Flux dans une fenêtre flottante</strong><p>{stream.name}</p><button className="primary-button" onClick={() => void window.api.returnToApp(stream.id)}>↩ Retour dans l'application</button><button className="delete-button detached-remove" onClick={() => removeStream(stream.id)} title="Supprimer le flux" aria-label={`Supprimer ${stream.name}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5" /></svg></button></div></article> : <StreamPlayer key={stream.id} stream={stream} onRemove={removeStream} onRename={renameStream} onResizeStart={startResize} onDetach={(item) => void detachStream(item)} onAspectRatio={reportAspectRatio} videoAspectRatio={aspectRatios[stream.id]} initiallyRunning={resumeIds.includes(stream.id)} onInitialRunConsumed={(id) => setResumeIds((current) => current.filter((item) => item !== id))} style={tileSizes[stream.id] ? { width: tileSizes[stream.id].width, height: tileSizes[stream.id].height, flex: `0 0 ${tileSizes[stream.id].width}px` } : undefined} />)}</div>}
-    </section><footer className="footer"><span>MultiView</span><span>WHEP · WebRTC</span></footer>
+    <header className="topbar"><div className="brand"><img className="brand-icon" src={appLogo} alt="MultiView" /><div><h1>MultiView</h1><p>{t('Lecteur de flux WHEP / WebRTC', 'WHEP / WebRTC stream viewer')}</p></div></div><div className="topbar-actions"><span className="status"><span className="status-dot" />{t('Prêt', 'Ready')}</span><button className="primary-button" onClick={() => setShowForm((current) => !current)}>+ {t('Ajouter un flux', 'Add stream')}</button></div></header>
+    {showForm && <form className="add-form" onSubmit={addStream}><label htmlFor="stream-name">{t('Nom du flux (facultatif)', 'Stream name (optional)')}</label><div className="form-row"><input id="stream-name" placeholder={t('Ex. Vue du joueur', 'e.g. Player view')} value={streamName} onChange={(event) => setStreamName(event.target.value)} /><input id="stream-url" type="url" placeholder="https://server.example.com/camera/whep" value={url} onChange={(event) => setUrl(event.target.value)} autoFocus required /><button className="primary-button" type="submit">{t('Ajouter', 'Add')}</button><button className="secondary-button" type="button" onClick={() => setShowForm(false)}>{t('Annuler', 'Cancel')}</button></div><p className="form-hint">{t('Les flux ne démarrent pas automatiquement. Le voyant indique si le serveur répond.', 'Streams do not start automatically. The indicator shows whether the stream is available.')}</p></form>}
+    <section className="workspace"><div className="section-heading"><div><h2>{t('Vue principale', 'Main view')}</h2><p>{streams.length} {t('flux configuré(s)', 'configured stream(s)')}</p></div></div>
+      {streams.length === 0 ? <div className="empty-state"><div className="empty-icon">▦</div><h2>{t('Votre espace vidéo est prêt', 'Your video space is ready')}</h2><p>{t('Ajoutez un flux WHEP pour commencer.', 'Add a WHEP stream to get started.')}</p><button className="primary-button" onClick={() => setShowForm(true)}>+ {t('Ajouter votre premier flux', 'Add your first stream')}</button></div> : <div className="stream-grid">{streams.map((stream) => detachedIds.includes(stream.id) ? <article className="stream-card detached-card" key={stream.id} draggable onDragStart={() => setDraggedId(stream.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderStream(stream.id)}><div className="detached-message"><span className="availability-dot online" /><strong>{t('Flux dans une fenêtre flottante', 'Stream in a floating window')}</strong><p>{stream.name}</p><button className="primary-button" onClick={() => void window.api.returnToApp(stream.id)}>↩ {t('Retour dans l’application', 'Return to app')}</button><button className="delete-button detached-remove" onClick={() => removeStream(stream.id)} title={t('Supprimer le flux', 'Delete stream')} aria-label={`${t('Supprimer', 'Delete')} ${stream.name}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5" /></svg></button></div></article> : <div key={stream.id} className="sortable-stream" draggable onDragStart={() => setDraggedId(stream.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderStream(stream.id)}><StreamPlayer stream={stream} language={language} onRemove={removeStream} onRename={renameStream} onResizeStart={startResize} onDetach={(item) => void detachStream(item)} onAspectRatio={reportAspectRatio} videoAspectRatio={aspectRatios[stream.id]} initiallyRunning={resumeIds.includes(stream.id)} onInitialRunConsumed={(id) => setResumeIds((current) => current.filter((item) => item !== id))} style={tileSizes[stream.id] ? { width: tileSizes[stream.id].width, height: tileSizes[stream.id].height, flex: `0 0 ${tileSizes[stream.id].width}px` } : undefined} /></div>)}</div>}
+    </section><footer className="footer"><div className="footer-left"><strong>MultiView</strong><span className="version">v1.1.0</span><span>WHEP · WebRTC</span></div><div className="footer-right"><button className={language === 'FR' ? 'language-active' : ''} onClick={() => setLanguage('FR')}>FR</button><span>|</span><button className={language === 'EN' ? 'language-active' : ''} onClick={() => setLanguage('EN')}>EN</button><a className="kofi-link" href="https://ko-fi.com/aeternoxx" target="_blank" rel="noreferrer"><img src="./kofi.svg" alt="Ko-fi" /> Ko-fi</a></div></footer>
   </main>
 }
 
