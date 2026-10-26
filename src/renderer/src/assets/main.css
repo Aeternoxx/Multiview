@@ -144,8 +144,18 @@ html, body, #root { height:100%; }
 .footer-right button.language-active { color:#fff; font-weight:700; }
 .kofi-link { display:flex; align-items:center; gap:6px; margin-left:8px; color:#f0c9a6; text-decoration:none; font-size:12px; }
 .kofi-link img { width:21px; height:21px; object-fit:contain; border-radius:5px; background:#fff; }
-.sortable-stream { display:contents; }
-.stream-card[draggable="true"], .sortable-stream { cursor:grab; }
+.sortable-stream {
+  display: block;
+  flex: 0 0 calc(50% - 9px);
+  width: calc(50% - 9px);
+  min-width: 280px;
+}
+.sortable-stream > .stream-card { width: 100%; flex: 0 0 100%; }
+.sortable-stream[draggable="true"], .detached-card[draggable="true"] { cursor: grab; }
+.sortable-stream[draggable="true"]:active, .detached-card[draggable="true"]:active { cursor: grabbing; }
+@media (max-width: 900px) {
+  .sortable-stream { flex-basis: 100%; width: 100%; }
+}
 .rename-form { display:flex; flex-wrap:wrap; gap:5px; }
 .rename-form input { min-width:120px; width:min(260px, 100%); padding:5px 7px; border:1px solid #424858; border-radius:5px; background:#101217; color:#e7eaf0; }
 .rename-form button { padding:4px 8px; border:1px solid #424858; border-radius:5px; background:#252a35; color:#fff; }

@@ -83,6 +83,25 @@ function readSavedStreams(): Stream[] {
   } catch { return [] }
 }
 
+function readSavedTileSizes(): Record<number, TileSize> {
+  try {
+    const saved = localStorage.getItem('multiview-tile-sizes')
+    if (!saved) return {}
+    const parsed: unknown = JSON.parse(saved)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    const result: Record<number, TileSize> = {}
+    for (const [id, size] of Object.entries(parsed)) {
+      if (size && typeof size === 'object' && 'width' in size && 'height' in size &&
+        typeof size.width === 'number' && typeof size.height === 'number' &&
+        Number.isFinite(size.width) && Number.isFinite(size.height) &&
+        size.width >= 280 && size.height >= 200 && Number.isFinite(Number(id))) {
+        result[Number(id)] = { width: size.width, height: size.height }
+      }
+    }
+    return result
+  } catch { return {} }
+}
+
 function StreamPlayer({
   stream, onRemove, onRename, onDetach, minimal = false, style, onResizeStart, onReturnToApp, onAspectRatio, videoAspectRatio, initiallyRunning = false, onInitialRunConsumed, language = 'FR',
 }: {
@@ -294,12 +313,13 @@ function App() {
   const [language, setLanguage] = useState<'FR' | 'EN'>(() => (localStorage.getItem('multiview-language') === 'EN' ? 'EN' : 'FR'))
   const [draggedId, setDraggedId] = useState<number | null>(null)
   const [showForm, setShowForm] = useState(false)
-  const [tileSizes, setTileSizes] = useState<Record<number, TileSize>>({})
+  const [tileSizes, setTileSizes] = useState<Record<number, TileSize>>(readSavedTileSizes)
   const [aspectRatios, setAspectRatios] = useState<Record<number, number>>({})
   const [detachedIds, setDetachedIds] = useState<number[]>([])
   const [resumeIds, setResumeIds] = useState<number[]>([])
 
   useEffect(() => { if (!isPopup) localStorage.setItem('multiview-streams', JSON.stringify(streams)) }, [streams, isPopup])
+  useEffect(() => { if (!isPopup) localStorage.setItem('multiview-tile-sizes', JSON.stringify(tileSizes)) }, [tileSizes, isPopup])
   useEffect(() => {
     if (isPopup && popupStream) document.title = popupStream.name
   }, [isPopup, popupStream?.name])
@@ -376,8 +396,8 @@ function App() {
     <header className="topbar"><div className="brand"><img className="brand-icon" src={appLogo} alt="MultiView" /><div><h1>MultiView</h1><p>{t('Lecteur de flux WHEP / WebRTC', 'WHEP / WebRTC stream viewer')}</p></div></div><div className="topbar-actions"><span className="status"><span className="status-dot" />{t('Prêt', 'Ready')}</span><button className="primary-button" onClick={() => setShowForm((current) => !current)}>+ {t('Ajouter un flux', 'Add stream')}</button></div></header>
     {showForm && <form className="add-form" onSubmit={addStream}><label htmlFor="stream-name">{t('Nom du flux (facultatif)', 'Stream name (optional)')}</label><div className="form-row"><input id="stream-name" placeholder={t('Ex. Vue du joueur', 'e.g. Player view')} value={streamName} onChange={(event) => setStreamName(event.target.value)} /><input id="stream-url" type="url" placeholder="https://server.example.com/camera/whep" value={url} onChange={(event) => setUrl(event.target.value)} autoFocus required /><button className="primary-button" type="submit">{t('Ajouter', 'Add')}</button><button className="secondary-button" type="button" onClick={() => setShowForm(false)}>{t('Annuler', 'Cancel')}</button></div><p className="form-hint">{t('Les flux ne démarrent pas automatiquement. Le voyant indique si le serveur répond.', 'Streams do not start automatically. The indicator shows whether the stream is available.')}</p></form>}
     <section className="workspace"><div className="section-heading"><div><h2>{t('Vue principale', 'Main view')}</h2><p>{streams.length} {t('flux configuré(s)', 'configured stream(s)')}</p></div></div>
-      {streams.length === 0 ? <div className="empty-state"><div className="empty-icon">▦</div><h2>{t('Votre espace vidéo est prêt', 'Your video space is ready')}</h2><p>{t('Ajoutez un flux WHEP pour commencer.', 'Add a WHEP stream to get started.')}</p><button className="primary-button" onClick={() => setShowForm(true)}>+ {t('Ajouter votre premier flux', 'Add your first stream')}</button></div> : <div className="stream-grid">{streams.map((stream) => detachedIds.includes(stream.id) ? <article className="stream-card detached-card" key={stream.id} draggable onDragStart={() => setDraggedId(stream.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderStream(stream.id)}><div className="detached-message"><span className="availability-dot online" /><strong>{t('Flux dans une fenêtre flottante', 'Stream in a floating window')}</strong><p>{stream.name}</p><button className="primary-button" onClick={() => void window.api.returnToApp(stream.id)}>↩ {t('Retour dans l’application', 'Return to app')}</button><button className="delete-button detached-remove" onClick={() => removeStream(stream.id)} title={t('Supprimer le flux', 'Delete stream')} aria-label={`${t('Supprimer', 'Delete')} ${stream.name}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5" /></svg></button></div></article> : <div key={stream.id} className="sortable-stream" draggable onDragStart={() => setDraggedId(stream.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderStream(stream.id)}><StreamPlayer stream={stream} language={language} onRemove={removeStream} onRename={renameStream} onResizeStart={startResize} onDetach={(item) => void detachStream(item)} onAspectRatio={reportAspectRatio} videoAspectRatio={aspectRatios[stream.id]} initiallyRunning={resumeIds.includes(stream.id)} onInitialRunConsumed={(id) => setResumeIds((current) => current.filter((item) => item !== id))} style={tileSizes[stream.id] ? { width: tileSizes[stream.id].width, height: tileSizes[stream.id].height, flex: `0 0 ${tileSizes[stream.id].width}px` } : undefined} /></div>)}</div>}
-    </section><footer className="footer"><div className="footer-left"><strong>MultiView</strong><span className="version">v1.1.0</span><span>WHEP · WebRTC</span></div><div className="footer-right"><button className={language === 'FR' ? 'language-active' : ''} onClick={() => setLanguage('FR')}>FR</button><span>|</span><button className={language === 'EN' ? 'language-active' : ''} onClick={() => setLanguage('EN')}>EN</button><a className="kofi-link" href="https://ko-fi.com/aeternoxx" target="_blank" rel="noreferrer"><img src="./kofi.svg" alt="Ko-fi" /> Ko-fi</a></div></footer>
+      {streams.length === 0 ? <div className="empty-state"><div className="empty-icon">▦</div><h2>{t('Votre espace vidéo est prêt', 'Your video space is ready')}</h2><p>{t('Ajoutez un flux WHEP pour commencer.', 'Add a WHEP stream to get started.')}</p><button className="primary-button" onClick={() => setShowForm(true)}>+ {t('Ajouter votre premier flux', 'Add your first stream')}</button></div> : <div className="stream-grid">{streams.map((stream) => detachedIds.includes(stream.id) ? <article className="stream-card detached-card" key={stream.id} draggable onDragStart={() => setDraggedId(stream.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderStream(stream.id)}><div className="detached-message"><span className="availability-dot online" /><strong>{t('Flux dans une fenêtre flottante', 'Stream in a floating window')}</strong><p>{stream.name}</p><button className="primary-button" onClick={() => void window.api.returnToApp(stream.id)}>↩ {t('Retour dans l’application', 'Return to app')}</button><button className="delete-button detached-remove" onClick={() => removeStream(stream.id)} title={t('Supprimer le flux', 'Delete stream')} aria-label={`${t('Supprimer', 'Delete')} ${stream.name}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5" /></svg></button></div></article> : <div key={stream.id} className="sortable-stream" style={tileSizes[stream.id] ? { width: `${tileSizes[stream.id].width}px`, flex: `0 0 ${tileSizes[stream.id].width}px` } : undefined} draggable onDragStart={() => setDraggedId(stream.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderStream(stream.id)}><StreamPlayer stream={stream} language={language} onRemove={removeStream} onRename={renameStream} onResizeStart={startResize} onDetach={(item) => void detachStream(item)} onAspectRatio={reportAspectRatio} videoAspectRatio={aspectRatios[stream.id]} initiallyRunning={resumeIds.includes(stream.id)} onInitialRunConsumed={(id) => setResumeIds((current) => current.filter((item) => item !== id))} style={tileSizes[stream.id] ? { width: '100%', height: tileSizes[stream.id].height, flex: '0 0 100%' } : undefined} /></div>)}</div>}
+    </section><footer className="footer"><div className="footer-left"><strong>MultiView</strong><span className="version">v1.1.1</span><span>WHEP · WebRTC</span></div><div className="footer-right"><button className={language === 'FR' ? 'language-active' : ''} onClick={() => setLanguage('FR')}>FR</button><span>|</span><button className={language === 'EN' ? 'language-active' : ''} onClick={() => setLanguage('EN')}>EN</button><a className="kofi-link" href="https://ko-fi.com/aeternoxx" target="_blank" rel="noreferrer"><img src="./kofi.svg" alt="Ko-fi" /> Ko-fi</a></div></footer>
   </main>
 }
 
