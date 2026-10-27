@@ -22,7 +22,10 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run build:win
+      # softprops/action-gh-release publishes the assets below. electron-builder
+      # would otherwise try to publish by itself because it detects the git tag
+      # and the GitHub remote, then fail without a GH_TOKEN.
+      - run: npm run build:win -- --publish never
 
       - uses: actions/upload-artifact@v4
         with:
