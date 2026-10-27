@@ -10,11 +10,14 @@ MultiView is a Windows desktop application built with Electron, React, and TypeS
 
 - **Multiple streams** — Watch several friends' views simultaneously.
 - **Floating windows** — Keep individual streams visible over your game.
-- **Always on top** — Keep detached streams above other windows.
-- **Audio controls** — Adjust or mute each stream individually.
+- **Always on top** — Keep detached streams above other windows, with a pin toggle when you need it off.
+- **Audio controls** — Adjust or mute each stream individually, with a solo mode.
+- **Automatic recovery** — Streams reconnect on their own after a network drop or an OBS restart.
+- **Live statistics** - Bitrate, FPS, resolution, jitter and dropped frames per stream.
+- **Import / export** - Back up your stream list or share it with a friend.
 - **Flexible viewing** — Resize windows, preserve aspect ratios, or switch to fullscreen.
-- **Stream management** — Add, rename, remove, and reattach streams.
-- **Manual playback** — Start streams whenever you're ready.
+- **Stream management** — Add, rename, remove, and reattach streams; reorder them by dragging.
+- **Manual playback** — Start streams whenever you're ready, individually or all at once.
 - **Local storage** — Your saved stream sources stay on your computer.
 
 > **Note:** Some games running in exclusive fullscreen mode may appear above floating windows. Borderless fullscreen is recommended.
@@ -50,11 +53,23 @@ npm install
 npm run dev
 ```
 
-Build commands are defined in `package.json`.
+Useful commands:
+
+| Command                | Description                           |
+| ---------------------- | ------------------------------------- |
+| `npm run dev`          | Start the app with hot reload         |
+| `npm run build`        | Type-check and build the app          |
+| `npm test`             | Run the unit tests (Vitest)           |
+| `npm run typecheck`    | Type-check main, preload and renderer |
+| `npm run lint`         | Run ESLint                            |
+| `npm run format:check` | Check formatting with Prettier        |
+| `npm run build:win`    | Build the Windows installers          |
 
 ## 🔒 Privacy
 
 Saved stream sources are stored locally. Stream URLs may contain private information or access tokens, so remove sensitive data before sharing logs, screenshots, or bug reports.
+
+The stream list (and the STUN/TURN settings, if you fill them in) is stored in the app's local storage on your machine. TURN credentials are only written to the local configuration file and are never sent anywhere else than to your own TURN server.
 
 ## 🤝 Contributing
 
@@ -84,11 +99,14 @@ MultiView est une application Windows développée avec Electron, React et TypeS
 
 - **Flux multiples** — Regarde simultanément les vues de plusieurs amis.
 - **Fenêtres flottantes** — Garde les flux visibles par-dessus ton jeu.
-- **Toujours au premier plan** — Maintiens les fenêtres au-dessus des autres applications.
-- **Contrôle audio** — Règle ou coupe le son de chaque flux indépendamment.
+- **Toujours au premier plan** — Maintiens les fenêtres détachées au-dessus des autres applications, avec une épingle pour désactiver le mode si besoin.
+- **Contrôle audio** — Règle ou coupe le son de chaque flux indépendamment, avec un mode solo.
+- **Reconnexion automatique** — Les flux se reconnectent seuls après une coupure réseau ou un redémarrage d'OBS.
+- **Statistiques en direct** — Débit, images/s, résolution, gigue et images perdues pour chaque flux.
+- **Import / export** — Sauvegarde ta liste de flux ou partage-la avec un ami.
 - **Affichage flexible** — Redimensionne les fenêtres, conserve les proportions ou passe en plein écran.
-- **Gestion des flux** — Ajoute, renomme, supprime et réintègre les flux dans la fenêtre principale.
-- **Lecture manuelle** — Lance les flux quand tu le souhaites.
+- **Gestion des flux** — Ajoute, renomme, supprime et réintègre les flux ; réordonne-les par glisser-déposer.
+- **Lecture manuelle** — Lance les flux quand tu le souhaites, individuellement ou tous à la fois.
 - **Stockage local** — Les sources enregistrées restent sur ton ordinateur.
 
 > **À noter :** Certains jeux en plein écran exclusif peuvent passer devant les fenêtres flottantes. Le mode plein écran sans bordure est recommandé.
@@ -124,11 +142,23 @@ npm install
 npm run dev
 ```
 
-Les commandes de compilation sont définies dans `package.json`.
+Commandes utiles :
+
+| Commande               | Description                                          |
+| ---------------------- | ---------------------------------------------------- |
+| `npm run dev`          | Lance l'application avec rechargement à chaud        |
+| `npm run build`        | Vérifie les types et compile l'application           |
+| `npm test`             | Lance les tests unitaires (Vitest)                   |
+| `npm run typecheck`    | Vérifie les types du main, du preload et du renderer |
+| `npm run lint`         | Lance ESLint                                         |
+| `npm run format:check` | Vérifie le formatage avec Prettier                   |
+| `npm run build:win`    | Génère les installateurs Windows                     |
 
 ## 🔒 Confidentialité
 
 Les sources enregistrées sont stockées localement. Les URL des flux peuvent contenir des informations privées ou des jetons d'accès : pense à les retirer des journaux, captures d'écran et rapports de bugs que tu partages.
+
+La liste des flux (ainsi que les paramètres STUN/TURN, si tu les renseignes) est stockée dans le stockage local de l'application, sur ta machine. Les identifiants TURN ne sont écrits que dans le fichier de configuration local et ne sont transmis qu'à ton propre serveur TURN.
 
 ## 🤝 Contributions
 

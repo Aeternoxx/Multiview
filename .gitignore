@@ -5,12 +5,8 @@ release/
 .DS_Store
 .eslintcache
 *.log*
-.env
-.env.*
-!.env.example
-# Local configuration and generated builds
-.env
-.env.*
-!.env.example
-release/
 *.local
+.env
+.env.*
+!.env.example
+.tmp/

@@ -1,0 +1,261 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.topbar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 28px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-elev);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.brand-icon {
+  display: block;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.brand h1 {
+  font-size: 19px;
+  letter-spacing: -0.5px;
+}
+
+.brand p {
+  margin-top: 3px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.topbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Matches the height of the "add stream" button for a coherent toolbar. */
+.topbar-settings {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+}
+
+.workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px 28px 12px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.section-heading h2 {
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.section-heading p {
+  margin-top: 5px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.stream-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 18px;
+  min-width: 0;
+}
+
+/*
+ * Fixed default tile width: enlarging the window reflows the grid (more
+ * columns) instead of zooming the video tiles. The resize grip stores an
+ * explicit width/height per stream; those tiles are frozen (inline
+ * `max-width: none`) and the workspace scrolls instead of shrinking them.
+ */
+.sortable-stream {
+  display: block;
+  flex: 0 0 440px;
+  width: 440px;
+  min-width: 280px;
+  max-width: 100%;
+}
+
+.sortable-stream[draggable='true'] {
+  cursor: grab;
+}
+
+.sortable-stream[draggable='true']:active {
+  cursor: grabbing;
+}
+
+.footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  padding: 9px 20px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-elev);
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.footer-left,
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.footer-left strong {
+  color: var(--text);
+}
+
+.footer .version {
+  padding: 2px 6px;
+  border: 1px solid #3c4251;
+  border-radius: 5px;
+  color: #c6cbe0;
+  font-size: 11px;
+}
+
+.footer-tech {
+  color: var(--text-dim);
+}
+
+.footer-right {
+  margin-left: auto;
+  gap: 5px;
+}
+
+.footer-right button {
+  padding: 3px 5px;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.footer-right button.language-active {
+  color: #fff;
+  font-weight: 700;
+}
+
+.kofi-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  color: #f0c9a6;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.kofi-link img {
+  width: 21px;
+  height: 21px;
+  border-radius: 5px;
+  background: #fff;
+  object-fit: contain;
+}
+
+.empty-state {
+  display: flex;
+  min-height: 360px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  border: 1px dashed #383d49;
+  border-radius: 14px;
+  background: #14171d;
+  text-align: center;
+}
+
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 20px;
+  border: 1px solid #3c3a67;
+  border-radius: 16px;
+  background: #24213f;
+  color: var(--accent-soft);
+  font-size: 30px;
+}
+
+.empty-state h2 {
+  font-size: 17px;
+}
+
+.empty-state p {
+  max-width: 380px;
+  margin: 10px 0 22px;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.form-error {
+  margin: 10px 0 0;
+  font-size: 12px;
+}
+
+.modal-field input:focus {
+  border-color: #7669fa;
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 650px) {
+  .footer {
+    padding: 8px 10px;
+  }
+
+  .footer-left .footer-tech {
+    display: none;
+  }
+
+  .footer-right {
+    gap: 2px;
+  }
+}

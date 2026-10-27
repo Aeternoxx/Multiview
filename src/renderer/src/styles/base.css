@@ -1,0 +1,225 @@
+:root {
+  color-scheme: dark;
+
+  --bg: #101217;
+  --bg-elev: #15181f;
+  --bg-card: #191c24;
+  --bg-input: #101217;
+  --border: #303541;
+  --border-soft: #282c36;
+  --text: #e7eaf0;
+  --text-dim: #9299a8;
+  --text-soft: #b6bdc9;
+  --accent: #6558e8;
+  --accent-hover: #776af5;
+  --accent-soft: #a69cff;
+  --danger: #ff5968;
+  --ok: #35d07f;
+  --warn: #e6b64c;
+  --radius: 12px;
+
+  font-family: Inter, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3,
+p,
+dl,
+dd,
+dt {
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+button:focus-visible,
+input:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 2px;
+}
+
+.primary-button,
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+.icon {
+  display: block;
+  flex: none;
+}
+
+.icon-spin {
+  animation: icon-spin 1s linear infinite;
+}
+
+@keyframes icon-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.primary-button {
+  border-color: #7669fa;
+  background: var(--accent);
+  color: #fff;
+}
+
+.primary-button:hover {
+  background: var(--accent-hover);
+}
+
+.secondary-button {
+  border-color: #383d49;
+  background: #20242d;
+  color: #d8dce5;
+}
+
+.secondary-button:hover {
+  background: #2b303b;
+}
+
+.secondary-button.danger {
+  border-color: #4d343b;
+  color: #f2a6af;
+}
+
+.secondary-button.danger:hover {
+  background: #3a2028;
+}
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #383d49;
+  border-radius: 7px;
+  background: transparent;
+  color: #b9bfcb;
+  transition:
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.icon-button:hover {
+  border-color: #7669fa;
+  color: #c3bcff;
+}
+
+.icon-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.icon-button:disabled:hover {
+  border-color: #383d49;
+  color: #b9bfcb;
+}
+
+.icon-button.active {
+  border-color: #7669fa;
+  background: rgb(101 88 232 / 28%);
+  color: #d7d1ff;
+}
+
+.delete-button .icon {
+  width: 17px;
+  height: 17px;
+}
+
+.delete-button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  padding: 7px;
+  border: 1px solid #49343b;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #2a1c22, #21171c);
+  color: #ef9aa5;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.delete-button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.delete-button:hover {
+  border-color: #e35f70;
+  background: #54242d;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

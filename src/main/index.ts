@@ -1,331 +1,234 @@
-import { app, shell, BrowserWindow, ipcMain, screen } from 'electron'
-import { join } from 'path'
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
+import { app, dialog, ipcMain } from 'electron'
+import { randomUUID } from 'crypto'
+import { readFile, writeFile } from 'fs/promises'
+import { electronApp, optimizer } from '@electron-toolkit/utils'
+import { STREAM_NAME_MAX_LENGTH } from '../shared/types'
+import type { AudioState, ImportedStreams, Stream, StreamWindowPayload } from '../shared/types'
+import { flushSettings, resetLayout } from './settings'
+import {
+  closeAllStreamWindows,
+  closeStreamWindow,
+  createMainWindow,
+  forgetStreamLayout,
+  getMainWindow,
+  openStreamWindow,
+  returnStreamToApp,
+  sendToMain,
+  setMainMinimumWidth,
+  setStreamAspectRatio,
+  setStreamPinned,
+  toggleStreamFullscreen
+} from './windows'
 
-type StreamWindowPayload = {
-  id: number
-  name: string
-  url: string
+const APP_USER_MODEL_ID = 'com.aeternoxx.multiview'
+
+function sanitizeName(value: unknown, fallback: string): string {
+  if (typeof value !== 'string') return fallback
+  const name = value.replace(/\s+/g, ' ').trim()
+  return name ? name.slice(0, STREAM_NAME_MAX_LENGTH) : fallback
 }
 
-const streamWindows = new Map<number, BrowserWindow>()
+function isHttpUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false
 
-type SavedBounds = { x?: number; y?: number; width: number; height: number }
-type WindowSettings = { main?: SavedBounds; streams?: Record<string, SavedBounds> }
-
-const settingsPath = join(app.getPath('userData'), 'window-layout.json')
-
-function readWindowSettings(): WindowSettings {
   try {
-    return existsSync(settingsPath)
-      ? (JSON.parse(readFileSync(settingsPath, 'utf8')) as WindowSettings)
-      : {}
+    const { protocol } = new URL(value)
+    return protocol === 'http:' || protocol === 'https:'
   } catch {
-    return {}
+    return false
   }
 }
 
-function saveWindowSettings(settings: WindowSettings): void {
+function sanitizeImportedStreams(value: unknown): ImportedStreams {
+  const rawList = Array.isArray(value)
+    ? value
+    : value && typeof value === 'object' && Array.isArray((value as { streams?: unknown }).streams)
+      ? ((value as { streams: unknown[] }).streams as unknown[])
+      : []
+
+  const streams: Stream[] = []
+  const seenUrls = new Set<string>()
+  const seenIds = new Set<string>()
+  let skipped = 0
+
+  for (const item of rawList) {
+    if (!item || typeof item !== 'object') {
+      skipped += 1
+      continue
+    }
+
+    const candidate = item as Record<string, unknown>
+    const url = typeof candidate.url === 'string' ? candidate.url.trim() : ''
+
+    if (!isHttpUrl(url) || seenUrls.has(url)) {
+      skipped += 1
+      continue
+    }
+
+    let id = typeof candidate.id === 'string' && candidate.id ? candidate.id : randomUUID()
+    if (seenIds.has(id)) id = randomUUID()
+
+    seenUrls.add(url)
+    seenIds.add(id)
+    streams.push({ id, name: sanitizeName(candidate.name, `Flux ${streams.length + 1}`), url })
+  }
+
+  return { streams, skipped }
+}
+
+async function exportStreams(streams: unknown): Promise<boolean> {
+  const { streams: safeStreams } = sanitizeImportedStreams(streams)
+  const window = getMainWindow()
+  const options: Electron.SaveDialogOptions = {
+    title: 'Exporter les flux — MultiView',
+    defaultPath: 'multiview-streams.json',
+    filters: [{ name: 'JSON', extensions: ['json'] }]
+  }
+
+  const result = window
+    ? await dialog.showSaveDialog(window, options)
+    : await dialog.showSaveDialog(options)
+
+  if (result.canceled || !result.filePath) return false
+
   try {
-    mkdirSync(app.getPath('userData'), { recursive: true })
-    writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf8')
+    await writeFile(
+      result.filePath,
+      JSON.stringify(
+        { version: 1, exportedAt: new Date().toISOString(), streams: safeStreams },
+        null,
+        2
+      ),
+      'utf8'
+    )
+    return true
   } catch (error) {
-    console.error('Unable to save window layout', error)
+    console.error('[MultiView] Unable to export streams:', error)
+    return false
   }
 }
 
-function safeBounds(bounds: SavedBounds | undefined, fallback: SavedBounds): SavedBounds {
-  if (!bounds || !Number.isFinite(bounds.width) || !Number.isFinite(bounds.height)) {
-    return fallback
+async function importStreams(): Promise<ImportedStreams | null> {
+  const window = getMainWindow()
+  const options: Electron.OpenDialogOptions = {
+    title: 'Importer des flux — MultiView',
+    properties: ['openFile'],
+    filters: [{ name: 'JSON', extensions: ['json'] }]
   }
 
-  const displays = screen.getAllDisplays()
-  const x = Number.isFinite(bounds.x) ? bounds.x! : 80
-  const y = Number.isFinite(bounds.y) ? bounds.y! : 80
+  const result = window
+    ? await dialog.showOpenDialog(window, options)
+    : await dialog.showOpenDialog(options)
 
-  const visible = displays.some(
-    (d) =>
-      x < d.workArea.x + d.workArea.width &&
-      x + bounds.width > d.workArea.x &&
-      y < d.workArea.y + d.workArea.height &&
-      y + bounds.height > d.workArea.y
-  )
+  const filePath = result.filePaths[0]
+  if (result.canceled || !filePath) return null
 
-  return visible ? { x, y, width: bounds.width, height: bounds.height } : fallback
-}
-
-const streamAspectRatios = new Map<number, number>()
-let mainWindow: BrowserWindow | null = null
-
-function closeStreamWindows(): void {
-  for (const popup of streamWindows.values()) {
-    if (!popup.isDestroyed()) {
-      popup.destroy()
-    }
-  }
-
-  streamWindows.clear()
-  streamAspectRatios.clear()
-}
-
-function loadStreamWindow(window: BrowserWindow, stream: StreamWindowPayload): void {
-  const query = {
-    streamPopup: '1',
-    streamId: String(stream.id),
-    streamName: stream.name,
-    streamUrl: stream.url,
-  }
-
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    const url = new URL(process.env['ELECTRON_RENDERER_URL'])
-
-    for (const [key, value] of Object.entries(query)) {
-      url.searchParams.set(key, value)
-    }
-
-    void window.loadURL(url.toString())
-  } else {
-    void window.loadFile(join(__dirname, '../renderer/index.html'), { query })
+  try {
+    const parsed: unknown = JSON.parse(await readFile(filePath, 'utf8'))
+    return sanitizeImportedStreams(parsed)
+  } catch (error) {
+    console.error('[MultiView] Unable to import streams:', error)
+    return { streams: [], skipped: 1 }
   }
 }
 
-function createWindow(): void {
-  const saved = readWindowSettings()
-  const bounds = safeBounds(saved.main, { width: 1100, height: 780 })
+function registerIpcHandlers(): void {
+  ipcMain.handle('get-app-state', () => ({
+    version: app.getVersion()
+  }))
 
-  mainWindow = new BrowserWindow({
-    ...bounds,
-    minWidth: 720,
-    minHeight: 520,
-    show: false,
-    autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
-    },
+  ipcMain.handle('set-main-minimum-width', (_event, width: unknown) => {
+    if (typeof width === 'number') setMainMinimumWidth(width)
   })
 
-  mainWindow.on('ready-to-show', () => mainWindow?.show())
-
-  mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
+  ipcMain.handle('open-stream-window', (_event, payload: StreamWindowPayload) => {
+    openStreamWindow(payload)
   })
 
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    void mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
-  } else {
-    void mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
-  }
+  ipcMain.handle('close-stream-window', (_event, id: unknown) => {
+    if (typeof id === 'string') closeStreamWindow(id)
+  })
 
-  const persistMain = () => {
-    if (
-      !mainWindow ||
-      mainWindow.isDestroyed() ||
-      mainWindow.isMinimized() ||
-      mainWindow.isMaximized()
-    ) {
-      return
-    }
+  ipcMain.handle('return-stream-to-app', (_event, id: unknown) => {
+    if (typeof id === 'string') returnStreamToApp(id)
+  })
 
-    const settings = readWindowSettings()
-    settings.main = mainWindow.getBounds()
-    saveWindowSettings(settings)
-  }
+  ipcMain.handle('set-stream-window-aspect-ratio', (_event, id: unknown, ratio: unknown) => {
+    if (typeof id === 'string' && typeof ratio === 'number') setStreamAspectRatio(id, ratio)
+  })
 
-  mainWindow.on('move', persistMain)
-  mainWindow.on('resize', persistMain)
+  ipcMain.handle('set-stream-window-pinned', (_event, id: unknown, pinned: unknown) => {
+    if (typeof id === 'string' && typeof pinned === 'boolean') setStreamPinned(id, pinned)
+  })
 
-  mainWindow.on('closed', () => {
-    persistMain()
-    mainWindow = null
+  ipcMain.handle('toggle-stream-window-fullscreen', (_event, id: unknown) => {
+    if (typeof id === 'string') toggleStreamFullscreen(id)
+  })
 
-    // Closing the main window exits the application on Windows and Linux.
+  ipcMain.handle('update-stream-audio', (_event, id: unknown, audio: AudioState) => {
+    if (typeof id !== 'string' || !audio || typeof audio !== 'object') return
+
+    const volume = Number(audio.volume)
+    if (!Number.isFinite(volume)) return
+
+    sendToMain('stream-audio-updated', {
+      id,
+      volume: Math.min(100, Math.max(0, volume)),
+      muted: audio.muted === true
+    })
+  })
+
+  ipcMain.handle('forget-stream-layout', (_event, id: unknown) => {
+    if (typeof id === 'string') forgetStreamLayout(id)
+  })
+
+  ipcMain.handle('reset-window-layout', () => {
+    resetLayout()
+  })
+
+  ipcMain.handle('export-streams', (_event, streams: unknown) => exportStreams(streams))
+
+  ipcMain.handle('import-streams', () => importStreams())
+}
+
+const hasSingleInstanceLock = app.requestSingleInstanceLock()
+
+if (!hasSingleInstanceLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    const window = getMainWindow()
+    if (!window) return
+
+    if (window.isMinimized()) window.restore()
+    window.show()
+    window.focus()
+  })
+
+  registerIpcHandlers()
+
+  app.whenReady().then(() => {
+    electronApp.setAppUserModelId(APP_USER_MODEL_ID)
+
+    app.on('browser-window-created', (_event, window) => {
+      optimizer.watchWindowShortcuts(window)
+    })
+
+    createMainWindow()
+
+    app.on('activate', () => {
+      if (!getMainWindow()) createMainWindow()
+    })
+  })
+
+  app.on('before-quit', () => {
+    flushSettings()
+  })
+
+  app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
-      closeStreamWindows()
+      closeAllStreamWindows()
       app.quit()
     }
   })
 }
-
-ipcMain.handle('open-stream-window', (_event, stream: StreamWindowPayload) => {
-  if (
-    !stream ||
-    typeof stream.id !== 'number' ||
-    typeof stream.name !== 'string' ||
-    typeof stream.url !== 'string'
-  ) {
-    throw new Error('Informations du flux invalides')
-  }
-
-  const existing = streamWindows.get(stream.id)
-
-  if (existing && !existing.isDestroyed()) {
-    existing.focus()
-    return
-  }
-
-  const savedLayout = readWindowSettings()
-  const popupBounds = safeBounds(savedLayout.streams?.[String(stream.id)], {
-    width: 800,
-    height: 520,
-  })
-
-  const popup = new BrowserWindow({
-    ...popupBounds,
-    minWidth: 360,
-    minHeight: 260,
-    frame: false,
-    title: stream.name,
-    backgroundColor: '#050609',
-    useContentSize: true,
-    autoHideMenuBar: true,
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
-    },
-  })
-
-  // Keep detached video windows above other applications, including games.
-  popup.setAlwaysOnTop(true, 'screen-saver')
-
-  popup.on('show', () => {
-    if (!popup.isDestroyed()) {
-      popup.setAlwaysOnTop(true, 'screen-saver')
-    }
-  })
-
-  streamWindows.set(stream.id, popup)
-
-  const persistPopup = () => {
-    if (popup.isDestroyed() || popup.isMinimized()) return
-
-    const settings = readWindowSettings()
-    settings.streams ??= {}
-    settings.streams[String(stream.id)] = popup.getBounds()
-    saveWindowSettings(settings)
-  }
-
-  popup.on('move', persistPopup)
-  popup.on('resize', persistPopup)
-  popup.on('page-title-updated', (event) => event.preventDefault())
-
-  popup.on('closed', () => {
-    if (streamWindows.get(stream.id) === popup) {
-      streamWindows.delete(stream.id)
-    }
-
-    streamAspectRatios.delete(stream.id)
-
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('stream-window-closed', stream.id)
-    }
-  })
-
-  loadStreamWindow(popup, stream)
-})
-
-ipcMain.handle('close-stream-window', (_event, id: number) => {
-  const popup = streamWindows.get(id)
-
-  if (popup && !popup.isDestroyed()) {
-    popup.close()
-  }
-})
-
-ipcMain.handle('return-stream-to-app', (_event, id: number) => {
-  const popup = streamWindows.get(id)
-
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('stream-window-returned', id)
-  }
-
-  if (popup && !popup.isDestroyed()) {
-    popup.close()
-  }
-
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    if (mainWindow.isMinimized()) mainWindow.restore()
-    mainWindow.show()
-    mainWindow.focus()
-  }
-})
-
-ipcMain.handle('set-stream-window-aspect-ratio', (_event, id: number, ratio: number) => {
-  if (typeof ratio !== 'number' || !Number.isFinite(ratio) || ratio < 0.2 || ratio > 5) {
-    return
-  }
-
-  const popup = streamWindows.get(id)
-
-  if (!popup || popup.isDestroyed()) return
-
-  streamAspectRatios.set(id, ratio)
-
-  let bounds = popup.getBounds()
-  const targetHeight = Math.max(180, Math.round(bounds.width / ratio))
-
-  if (Math.abs(bounds.height - targetHeight) > 2) {
-    popup.setSize(bounds.width, targetHeight)
-    bounds = popup.getBounds()
-  }
-
-  popup.removeAllListeners('resize')
-
-  popup.on('resize', () => {
-    if (popup.isDestroyed()) return
-
-    const current = popup.getBounds()
-    const currentRatio = streamAspectRatios.get(id)
-
-    if (!currentRatio) return
-
-    if (Math.abs(current.width / current.height - currentRatio) < 0.015) {
-      bounds = current
-      return
-    }
-
-    const widthChange =
-      Math.abs(current.width - bounds.width) / Math.max(1, bounds.width)
-    const heightChange =
-      Math.abs(current.height - bounds.height) / Math.max(1, bounds.height)
-
-    const nextWidth =
-      widthChange >= heightChange
-        ? current.width
-        : Math.max(320, Math.round(current.height * currentRatio))
-
-    const nextHeight =
-      widthChange >= heightChange
-        ? Math.max(180, Math.round(current.width / currentRatio))
-        : current.height
-
-    popup.setSize(nextWidth, nextHeight)
-    bounds = { ...current, width: nextWidth, height: nextHeight }
-  })
-})
-
-app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.multiview')
-  app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
-  ipcMain.on('ping', () => console.log('pong'))
-
-  createWindow()
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
-})
-
-app.on('before-quit', () => {
-  closeStreamWindows()
-})
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
-})
