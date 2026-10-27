@@ -15,6 +15,10 @@ asarUnpack:
 win:
   executableName: MultiView
   icon: build/icon.ico
+  # Fallback name, only used by the `zip` target (it has no config section of its
+  # own): MultiView-<version>-portable.zip. The installer and the single-file
+  # portable exe declare their own names below.
+  artifactName: ${productName}-${version}-portable.${ext}
   target:
     - nsis
     - portable
@@ -26,8 +30,6 @@ nsis:
   createDesktopShortcut: always
 portable:
   artifactName: ${productName}-${version}-portable.${ext}
-# The `zip` target has no config section of its own: electron-builder names it
-# MultiView-<version>-win.zip and archives win-unpacked as-is.
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   category: public.app-category.video
