@@ -22,6 +22,10 @@ MultiView is a Windows desktop application built with Electron, React, and TypeS
 
 > **Note:** Some games running in exclusive fullscreen mode may appear above floating windows. Borderless fullscreen is recommended.
 
+## Screenshots
+
+![MultiView — multiple floating video streams](screenshots/multiview.png)
+
 ## 📥 Download
 
 **[Download the latest release](https://github.com/Aeternoxx/MultiView/releases/latest)**
@@ -110,6 +114,10 @@ MultiView est une application Windows développée avec Electron, React et TypeS
 - **Stockage local** — Les sources enregistrées restent sur ton ordinateur.
 
 > **À noter :** Certains jeux en plein écran exclusif peuvent passer devant les fenêtres flottantes. Le mode plein écran sans bordure est recommandé.
+
+## Screenshots
+
+![MultiView — multiple floating video streams](screenshots/multiview.png)
 
 ## 📥 Téléchargement
 
