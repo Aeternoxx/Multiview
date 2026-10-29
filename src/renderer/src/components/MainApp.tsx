@@ -254,6 +254,10 @@ export function MainApp(): React.JSX.Element {
     return null
   }
 
+  const stopStream = useCallback((id: string): void => {
+    setRunningIds((current) => current.filter((item) => item !== id))
+  }, [])
+
   const toggleStream = (id: string): void => {
     setRunningIds((current) =>
       current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
@@ -451,6 +455,7 @@ export function MainApp(): React.JSX.Element {
                       aspectRatio={aspectRatios[stream.id]}
                       iceServers={iceServers}
                       onToggle={toggleStream}
+                      onUnavailable={stopStream}
                       onRemove={requestRemoval}
                       onEdit={(item) => setStreamDialog({ mode: 'edit', stream: item })}
                       onDetach={(item) => void detachStream(item)}

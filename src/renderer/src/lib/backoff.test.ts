@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_CONNECT_ATTEMPTS, retryDelay } from './backoff'
+import { RECONNECT_WINDOW_MS, retryDelay } from './backoff'
 
 describe('retryDelay', () => {
   it('follows an increasing backoff', () => {
@@ -12,7 +12,7 @@ describe('retryDelay', () => {
     expect(retryDelay(2.7)).toBe(4000)
   })
 
-  it('exposes a bounded number of attempts', () => {
-    expect(MAX_CONNECT_ATTEMPTS).toBeGreaterThan(0)
+  it('keeps retrying for a bounded amount of time', () => {
+    expect(RECONNECT_WINDOW_MS).toBe(5 * 60_000)
   })
 })

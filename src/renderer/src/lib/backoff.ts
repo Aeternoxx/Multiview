@@ -5,4 +5,8 @@ export function retryDelay(attempt: number): number {
   return RETRY_DELAYS_MS[index]
 }
 
-export const MAX_CONNECT_ATTEMPTS = 8
+/**
+ * How long a player keeps retrying after a stream drops (or after a failed
+ * initial start) before it gives up and returns to the stopped state.
+ */
+export const RECONNECT_WINDOW_MS = 5 * 60_000

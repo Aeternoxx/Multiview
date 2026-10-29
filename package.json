@@ -1,6 +1,6 @@
 {
   "name": "multiview",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "MultiView — floating multi-stream WHEP/WebRTC viewer",
   "main": "./out/main/index.js",
   "author": "MultiView",

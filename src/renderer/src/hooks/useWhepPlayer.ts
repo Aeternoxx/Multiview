@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
-import { MAX_CONNECT_ATTEMPTS, retryDelay } from '../lib/backoff'
+import { RECONNECT_WINDOW_MS, retryDelay } from '../lib/backoff'
 import {
   WhepSession,
   toWhepError,
@@ -13,6 +13,11 @@ type UseWhepPlayerOptions = {
   active: boolean
   iceServers: RTCIceServer[]
   videoRef: RefObject<HTMLVideoElement | null>
+  /**
+   * Called once the reconnection window is over without the stream coming
+   * back. The caller should return the tile to its stopped state.
+   */
+  onUnavailable?: () => void
 }
 
 type UseWhepPlayerResult = {
@@ -28,7 +33,8 @@ export function useWhepPlayer({
   url,
   active,
   iceServers,
-  videoRef
+  videoRef,
+  onUnavailable
 }: UseWhepPlayerOptions): UseWhepPlayerResult {
   const [status, setStatus] = useState<WhepStatus>('idle')
   const [error, setError] = useState<WhepError | null>(null)
@@ -37,10 +43,15 @@ export function useWhepPlayer({
 
   const iceKey = JSON.stringify(iceServers)
   const iceRef = useRef(iceServers)
+  const onUnavailableRef = useRef(onUnavailable)
 
   useEffect(() => {
     iceRef.current = iceServers
   }, [iceServers])
+
+  useEffect(() => {
+    onUnavailableRef.current = onUnavailable
+  }, [onUnavailable])
 
   useEffect(() => {
     if (!active) {
@@ -50,10 +61,13 @@ export function useWhepPlayer({
     }
 
     let cancelled = false
+    let finished = false
     let session: WhepSession | null = null
     let retryTimer: ReturnType<typeof setTimeout> | undefined
+    let deadlineTimer: ReturnType<typeof setTimeout> | undefined
     let statsTimer: ReturnType<typeof setInterval> | undefined
     let attempt = 0
+    let recovering = false
     const videoElement = videoRef.current
 
     const stopStats = (): void => {
@@ -80,14 +94,53 @@ export function useWhepPlayer({
       }, STATS_INTERVAL_MS)
     }
 
-    const scheduleRetry = (): void => {
-      if (cancelled) return
+    const clearDeadline = (): void => {
+      if (deadlineTimer) {
+        clearTimeout(deadlineTimer)
+        deadlineTimer = undefined
+      }
+    }
 
-      if (attempt >= MAX_CONNECT_ATTEMPTS) {
-        setStatus('error')
-        return
+    const giveUp = (): void => {
+      if (cancelled || finished) return
+      finished = true
+
+      clearDeadline()
+      if (retryTimer) {
+        clearTimeout(retryTimer)
+        retryTimer = undefined
       }
 
+      stopStats()
+      setStats(null)
+
+      const current = session
+      session = null
+      if (current) void current.close()
+
+      setStatus('error')
+      onUnavailableRef.current?.()
+    }
+
+    // The window starts as soon as playback is requested and restarts after a
+    // drop. It is only cancelled once media is actually flowing again.
+    const beginRecovery = (): void => {
+      if (cancelled || finished || recovering) return
+      recovering = true
+      deadlineTimer = setTimeout(giveUp, RECONNECT_WINDOW_MS)
+    }
+
+    const endRecovery = (): void => {
+      recovering = false
+      attempt = 0
+      clearDeadline()
+    }
+
+    const scheduleRetry = (): void => {
+      if (cancelled || finished) return
+
+      beginRecovery()
+      if (retryTimer) clearTimeout(retryTimer)
       const delay = retryDelay(attempt)
       attempt += 1
       setStatus('disconnected')
@@ -98,7 +151,7 @@ export function useWhepPlayer({
     }
 
     const connect = async (): Promise<void> => {
-      if (cancelled) return
+      if (cancelled || finished) return
 
       if (retryTimer) {
         clearTimeout(retryTimer)
@@ -115,7 +168,10 @@ export function useWhepPlayer({
       const next = new WhepSession({
         iceServers: iceRef.current,
         onStatus: (value) => {
-          if (!cancelled) setStatus(value)
+          if (cancelled || finished) return
+
+          if (value === 'live') endRecovery()
+          setStatus(value)
         },
         onTrack: (stream) => {
           if (!videoElement) return
@@ -124,15 +180,17 @@ export function useWhepPlayer({
           void videoElement.play().catch(() => undefined)
         },
         onDrop: () => {
-          if (cancelled) return
+          if (cancelled || finished) return
+          // The session may already have been replaced by a retry.
+          if (session !== next) return
 
+          session = null
           void next.close()
-          if (session === next) session = null
           stopStats()
           scheduleRetry()
         },
         onError: (value) => {
-          if (!cancelled) setError(value)
+          if (!cancelled && !finished) setError(value)
         }
       })
 
@@ -140,41 +198,39 @@ export function useWhepPlayer({
 
       try {
         await next.start(url)
-        if (cancelled) return
+        if (cancelled || finished) return
+        if (session !== next) return
 
-        attempt = 0
         setError(null)
         startStats()
       } catch (failure) {
-        if (cancelled) return
+        if (cancelled || finished) return
+
+        // A drop may have closed this session while start() was in flight and
+        // already scheduled the next attempt.
+        if (session !== next) return
 
         const whepError = toWhepError(failure)
         setError(whepError)
 
+        session = null
         void next.close()
-        if (session === next) session = null
 
-        const permanent =
-          whepError.code === 'http' &&
-          whepError.status !== undefined &&
-          whepError.status >= 400 &&
-          whepError.status < 500
-
-        if (permanent) {
-          setStatus('error')
-          return
-        }
-
+        // 4xx responses (including the 404 returned when a stream is no longer
+        // published) are treated as transient here: a restarted stream must be
+        // allowed to come back during the reconnection window.
         scheduleRetry()
       }
     }
 
+    beginRecovery()
     void connect()
 
     return () => {
       cancelled = true
 
       if (retryTimer) clearTimeout(retryTimer)
+      clearDeadline()
       stopStats()
 
       void session?.close()

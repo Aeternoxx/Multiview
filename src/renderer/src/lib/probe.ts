@@ -7,6 +7,11 @@ type CacheEntry = { result: boolean; checkedAt: number }
 
 const cache = new Map<string, CacheEntry>()
 const inFlight = new Map<string, Promise<boolean>>()
+const generations = new Map<string, number>()
+
+function generationOf(url: string): number {
+  return generations.get(url) ?? 0
+}
 
 /**
  * Opens a short-lived WHEP session and waits for a decoded frame: an OPTIONS
@@ -81,20 +86,38 @@ export async function probeStreamCached(
   const pending = inFlight.get(url)
   if (pending) return pending
 
+  const generation = generationOf(url)
+
   const promise = probeStream(url, iceServers)
     .then((result) => {
-      cache.set(url, { result, checkedAt: Date.now() })
+      // An invalidation happened while this probe was running: its result is
+      // already stale, so do not cache it.
+      if (generationOf(url) === generation) cache.set(url, { result, checkedAt: Date.now() })
       return result
     })
     .catch(() => false)
     .finally(() => {
-      inFlight.delete(url)
+      // A newer probe may have replaced this one after an invalidation.
+      if (inFlight.get(url) === promise) inFlight.delete(url)
     })
 
   inFlight.set(url, promise)
   return promise
 }
 
+/** Drops the cached result for one URL so the next probe is authoritative. */
+export function invalidateProbeCache(url: string): void {
+  generations.set(url, generationOf(url) + 1)
+  cache.delete(url)
+  // Do not reuse a probe that started before the invalidation.
+  inFlight.delete(url)
+}
+
 export function clearProbeCache(): void {
   cache.clear()
+  inFlight.clear()
+
+  for (const url of generations.keys()) {
+    generations.set(url, generationOf(url) + 1)
+  }
 }

@@ -1,4 +1,10 @@
-﻿import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+﻿import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent
+} from 'react'
 import type { AudioState, Stream } from '@shared/types'
 import { useI18n, type TranslationKey } from '../i18n'
 import { useStreamAvailability } from '../hooks/useStreamAvailability'
@@ -6,7 +12,8 @@ import { useWhepPlayer } from '../hooks/useWhepPlayer'
 import { describeWhepError } from '../lib/errors'
 import type { TileSize } from '../lib/storage'
 import type { WhepStatus } from '../lib/whep'
-import type { Availability } from '../lib/availability'
+import { setAvailability, type Availability } from '../lib/availability'
+import { invalidateProbeCache } from '../lib/probe'
 import { AudioControls } from './AudioControls'
 import { Icon } from './Icon'
 import { StatsPanel } from './StatsPanel'
@@ -20,6 +27,7 @@ type StreamCardProps = {
   aspectRatio?: number
   iceServers: RTCIceServer[]
   onToggle: (id: string) => void
+  onUnavailable: (id: string) => void
   onRemove: (id: string) => void
   onEdit: (stream: Stream) => void
   onDetach: (stream: Stream) => void
@@ -63,6 +71,7 @@ export function StreamCard({
   aspectRatio,
   iceServers,
   onToggle,
+  onUnavailable,
   onRemove,
   onEdit,
   onDetach,
@@ -75,17 +84,33 @@ export function StreamCard({
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
+  const handleUnavailable = useCallback((): void => {
+    // Reconnection failed for the whole window: forget any previous "online"
+    // result and let the background probe decide whether the stream is still
+    // published, then return the tile to its stopped state.
+    invalidateProbeCache(stream.url)
+    setAvailability(stream.url, 'checking')
+    onUnavailable(stream.id)
+  }, [stream.url, stream.id, onUnavailable])
+
   const { status, error, stats, retry } = useWhepPlayer({
     url: stream.url,
     active: running,
     iceServers,
-    videoRef
+    videoRef,
+    onUnavailable: handleUnavailable
   })
   const availability = useStreamAvailability({
     url: stream.url,
     enabled: !running,
     iceServers
   })
+
+  useEffect(() => {
+    // Presence is unknown while the stream is playing; never reuse a probe
+    // result from before playback when the tile stops again.
+    if (running) invalidateProbeCache(stream.url)
+  }, [running, stream.url])
 
   const [hasVideo, setHasVideo] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)

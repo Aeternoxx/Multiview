@@ -13,13 +13,14 @@ type UseStreamAvailabilityOptions = {
   iceServers: RTCIceServer[]
 }
 
-const OFFLINE_INTERVAL_MS = 45_000
+const OFFLINE_INTERVAL_MS = 30_000
+const ONLINE_INTERVAL_MS = 60_000
 const HIDDEN_INTERVAL_MS = 15_000
 
 /**
- * Background availability check for stopped streams only. Probing stops as soon
- * as the stream is detected (or while it plays): the live WebRTC connection then
- * reports its own state, so there is nothing left to poll.
+ * Background availability check for stopped streams. Polling continues while
+ * the stream is available too: a stream that stops being broadcast while idle
+ * must be reported as unavailable instead of staying "online" forever.
  */
 export function useStreamAvailability({
   url,
@@ -40,7 +41,7 @@ export function useStreamAvailability({
   }, [iceServers])
 
   useEffect(() => {
-    if (!enabled || availability === 'online') return
+    if (!enabled) return
 
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -65,9 +66,7 @@ export function useStreamAvailability({
       if (cancelled) return
 
       setAvailability(url, online ? 'online' : 'offline')
-
-      // Detected: stop polling until the user starts or stops the stream.
-      if (!online) schedule(OFFLINE_INTERVAL_MS)
+      schedule(online ? ONLINE_INTERVAL_MS : OFFLINE_INTERVAL_MS)
     }
 
     const onVisibilityChange = (): void => {
@@ -84,7 +83,7 @@ export function useStreamAvailability({
       if (timer) clearTimeout(timer)
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }
-  }, [url, enabled, iceKey, availability])
+  }, [url, enabled, iceKey])
 
   return availability
 }

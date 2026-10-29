@@ -12,7 +12,7 @@ MultiView is a Windows desktop application built with Electron, React, and TypeS
 - **Floating windows** — Keep individual streams visible over your game.
 - **Always on top** — Keep detached streams above other windows, with a pin toggle when you need it off.
 - **Audio controls** — Adjust or mute each stream individually, with a solo mode.
-- **Automatic recovery** — Streams reconnect on their own after a network drop or an OBS restart.
+- **Automatic recovery** — Streams retry for up to 5 minutes after a network drop or an OBS restart, then return to the stopped state and keep checking availability.
 - **Live statistics** - Bitrate, FPS, resolution, jitter and dropped frames per stream.
 - **Import / export** - Back up your stream list or share it with a friend.
 - **Flexible viewing** — Resize windows, preserve aspect ratios, or switch to fullscreen.
@@ -105,7 +105,7 @@ MultiView est une application Windows développée avec Electron, React et TypeS
 - **Fenêtres flottantes** — Garde les flux visibles par-dessus ton jeu.
 - **Toujours au premier plan** — Maintiens les fenêtres détachées au-dessus des autres applications, avec une épingle pour désactiver le mode si besoin.
 - **Contrôle audio** — Règle ou coupe le son de chaque flux indépendamment, avec un mode solo.
-- **Reconnexion automatique** — Les flux se reconnectent seuls après une coupure réseau ou un redémarrage d'OBS.
+- **Reconnexion automatique** — Les flux tentent de se reconnecter pendant 5 minutes après une coupure réseau ou un redémarrage d'OBS, puis reviennent à l'état arrêté en continuant à surveiller leur disponibilité.
 - **Statistiques en direct** — Débit, images/s, résolution, gigue et images perdues pour chaque flux.
 - **Import / export** — Sauvegarde ta liste de flux ou partage-la avec un ami.
 - **Affichage flexible** — Redimensionne les fenêtres, conserve les proportions ou passe en plein écran.
