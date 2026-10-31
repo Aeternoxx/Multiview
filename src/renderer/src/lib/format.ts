@@ -23,3 +23,8 @@ export function formatJitter(ms: number | null): string {
   if (ms === null || !Number.isFinite(ms)) return '—'
   return `${Math.round(ms)} ms`
 }
+
+export function formatLatency(ms: number | null): string {
+  if (ms === null || !Number.isFinite(ms)) return '—'
+  return `${Math.round(ms)} ms`
+}

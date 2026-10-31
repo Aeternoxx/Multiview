@@ -68,6 +68,7 @@ export const en: Record<keyof typeof fr, string> = {
   'stats.bitrate': 'Bitrate',
   'stats.fps': 'FPS',
   'stats.resolution': 'Resolution',
+  'stats.buffer': 'Video buffer',
   'stats.dropped': 'Dropped frames',
   'stats.jitter': 'Jitter',
   'availability.online': 'Stream available',

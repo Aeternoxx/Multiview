@@ -1,3 +1,5 @@
+import { AUDIO_BUFFER_MS, VIDEO_MIN_BUFFER_MS } from './latency'
+
 export type WhepStatus =
   'idle' | 'connecting' | 'negotiating' | 'waiting' | 'live' | 'disconnected' | 'error'
 
@@ -22,6 +24,8 @@ export type StreamStats = {
   height: number | null
   droppedFrames: number | null
   jitterMs: number | null
+  /** Average time media currently waits in the jitter buffer before playout. */
+  bufferMs: number | null
 }
 
 export type WhepSessionOptions = {
@@ -47,10 +51,16 @@ type InboundVideoStats = {
   frameHeight?: number
   framesDropped?: number
   jitter?: number
+  jitterBufferDelay?: number
+  jitterBufferEmittedCount?: number
 }
 
 const DEFAULT_CONNECT_TIMEOUT_MS = 10_000
 const DROP_GRACE_MS = 4_000
+
+/** Resolve gathering shortly after the last candidate instead of waiting 4 s. */
+const ICE_IDLE_MS = 400
+const ICE_MAX_MS = 4_000
 
 /**
  * Minimal WHEP client: one recvonly peer connection, an explicit timeout and a
@@ -64,6 +74,8 @@ export class WhepSession {
   private abortController: AbortController | null = null
   private dropTimer: ReturnType<typeof setTimeout> | undefined
   private closed = false
+  private videoReceiver: RTCRtpReceiver | null = null
+  private videoTargetMs = VIDEO_MIN_BUFFER_MS
 
   private lastBytes = 0
   private lastStatsAt = 0
@@ -77,7 +89,14 @@ export class WhepSession {
     this.pc.ontrack = (event) => {
       if (this.closed) return
 
-      applyLowLatency(event.receiver)
+      if (event.track.kind === 'video') {
+        this.videoReceiver = event.receiver
+        this.videoTargetMs = VIDEO_MIN_BUFFER_MS
+        applyLowLatency(event.receiver, VIDEO_MIN_BUFFER_MS)
+      } else {
+        applyLowLatency(event.receiver, AUDIO_BUFFER_MS)
+      }
+
       this.media.addTrack(event.track)
       this.options.onTrack?.(this.media)
     }
@@ -185,6 +204,27 @@ export class WhepSession {
     if (!this.closed) this.options.onStatus?.('waiting')
   }
 
+  /**
+   * Adaptive safety net: the video target stays at the minimum and is only
+   * raised while the measured jitter is high. Ignored by browsers without
+   * `jitterBufferTarget`.
+   */
+  setVideoLatencyTarget(targetMs: number): void {
+    if (this.closed || !this.videoReceiver) return
+    if (targetMs === this.videoTargetMs) return
+
+    const receiver = this.videoReceiver as LowLatencyReceiver
+
+    try {
+      if ('jitterBufferTarget' in receiver) {
+        receiver.jitterBufferTarget = targetMs
+        this.videoTargetMs = targetMs
+      }
+    } catch {
+      // Unsupported or out of range: keep the current target.
+    }
+  }
+
   async collectStats(): Promise<StreamStats | null> {
     if (this.closed) return null
 
@@ -215,7 +255,8 @@ export class WhepSession {
         width: inbound.frameWidth ?? null,
         height: inbound.frameHeight ?? null,
         droppedFrames: inbound.framesDropped ?? null,
-        jitterMs: typeof inbound.jitter === 'number' ? inbound.jitter * 1000 : null
+        jitterMs: typeof inbound.jitter === 'number' ? inbound.jitter * 1000 : null,
+        bufferMs: averageBufferMs(inbound)
       }
     } catch {
       return null
@@ -269,10 +310,39 @@ export class WhepSession {
   private async waitForIce(): Promise<void> {
     if (this.pc.iceGatheringState === 'complete') return
 
+    // The full gathering window is only kept when a STUN/TURN server is
+    // configured and its reflexive candidate has not arrived yet. Otherwise the
+    // offer can go out shortly after the last candidate, which removes up to a
+    // few seconds from the time to first frame.
+    const usesTurn = (this.options.iceServers ?? []).some((server) => {
+      const urls = Array.isArray(server.urls) ? server.urls : [server.urls]
+      return urls.some(
+        (url) => typeof url === 'string' && url.trim().toLowerCase().startsWith('turn')
+      )
+    })
+
+    const usesStun = (this.options.iceServers ?? []).some((server) => {
+      const urls = Array.isArray(server.urls) ? server.urls : [server.urls]
+      return urls.some(
+        (url) => typeof url === 'string' && url.trim().toLowerCase().startsWith('stun')
+      )
+    })
+
+    // A configured STUN/TURN server needs its reflexive candidate in the offer.
+    // Without one (usual LAN setup), the offer can go out as soon as the host
+    // candidates have settled.
+    const needsReflexive = usesStun || usesTurn
+
     await new Promise<void>((resolve) => {
+      let idleTimer: ReturnType<typeof setTimeout> | undefined
+      let maxTimer: ReturnType<typeof setTimeout> | null = null
+      let sawReflexive = false
+
       const finish = (): void => {
         this.pc.removeEventListener('icegatheringstatechange', onChange)
-        clearTimeout(timeout)
+        this.pc.removeEventListener('icecandidate', onCandidate)
+        if (idleTimer) clearTimeout(idleTimer)
+        if (maxTimer) clearTimeout(maxTimer)
         resolve()
       }
 
@@ -280,25 +350,59 @@ export class WhepSession {
         if (this.pc.iceGatheringState === 'complete') finish()
       }
 
-      const timeout = setTimeout(finish, 4000)
+      const onCandidate = (event: RTCPeerConnectionIceEvent): void => {
+        if (!event.candidate) return
+
+        if (event.candidate.type === 'srflx' || event.candidate.type === 'relay') {
+          sawReflexive = true
+        }
+
+        if (needsReflexive && !sawReflexive) return
+
+        if (idleTimer) clearTimeout(idleTimer)
+        idleTimer = setTimeout(finish, ICE_IDLE_MS)
+      }
+
       this.pc.addEventListener('icegatheringstatechange', onChange)
+      this.pc.addEventListener('icecandidate', onCandidate)
+
+      // Gathering may have completed while the listeners were being added.
+      if (this.pc.iceGatheringState === 'complete') {
+        finish()
+        return
+      }
+
+      maxTimer = setTimeout(finish, ICE_MAX_MS)
     })
   }
 }
 
-function applyLowLatency(receiver: RTCRtpReceiver): void {
+function averageBufferMs(stats: InboundVideoStats): number | null {
+  const delay = stats.jitterBufferDelay
+  const emitted = stats.jitterBufferEmittedCount
+
+  if (typeof delay !== 'number' || typeof emitted !== 'number' || emitted <= 0) return null
+
+  return Math.round((delay / emitted) * 1000)
+}
+
+function applyLowLatency(receiver: RTCRtpReceiver, targetMs: number): void {
   const target = receiver as LowLatencyReceiver
 
   try {
-    target.playoutDelayHint = 0
+    if ('jitterBufferTarget' in target) target.jitterBufferTarget = targetMs
   } catch {
     // Unsupported.
   }
 
-  try {
-    if ('jitterBufferTarget' in target) target.jitterBufferTarget = 0
-  } catch {
-    // Unsupported.
+  // Deprecated hint, still honoured by some Chromium builds. Only relevant for
+  // the video receiver: forcing it on audio causes crackling.
+  if (targetMs === VIDEO_MIN_BUFFER_MS) {
+    try {
+      target.playoutDelayHint = 0
+    } catch {
+      // Unsupported.
+    }
   }
 }
 

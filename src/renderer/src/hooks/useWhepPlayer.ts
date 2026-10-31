@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { RECONNECT_WINDOW_MS, retryDelay } from '../lib/backoff'
 import {
+  INITIAL_LATENCY_STATE,
+  VIDEO_MIN_BUFFER_MS,
+  nextLatencyState,
+  nextPlaybackRate
+} from '../lib/latency'
+import {
   WhepSession,
   toWhepError,
   type StreamStats,
@@ -28,6 +34,9 @@ type UseWhepPlayerResult = {
 }
 
 const STATS_INTERVAL_MS = 2000
+
+/** Drift correction runs more often than the stats, but stays cheap. */
+const TUNING_INTERVAL_MS = 500
 
 export function useWhepPlayer({
   url,
@@ -66,8 +75,11 @@ export function useWhepPlayer({
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let deadlineTimer: ReturnType<typeof setTimeout> | undefined
     let statsTimer: ReturnType<typeof setInterval> | undefined
+    let tuningTimer: ReturnType<typeof setInterval> | undefined
     let attempt = 0
     let recovering = false
+    let latencyState = INITIAL_LATENCY_STATE
+    let appliedLatencyMs = VIDEO_MIN_BUFFER_MS
     const videoElement = videoRef.current
 
     const stopStats = (): void => {
@@ -75,6 +87,41 @@ export function useWhepPlayer({
         clearInterval(statsTimer)
         statsTimer = undefined
       }
+    }
+
+    /**
+     * Keeps the accumulated latency bounded: a temporary speed-up drains the
+     * backlog after a hiccup or a slow decode, without changing the jitter
+     * buffer target. The rate is reset as soon as the backlog is gone.
+     */
+    const tunePlayout = (): void => {
+      if (!videoElement) return
+
+      if (videoElement.paused || videoElement.readyState < 2) {
+        if (videoElement.playbackRate !== 1) videoElement.playbackRate = 1
+        return
+      }
+
+      const buffered = videoElement.buffered
+      if (buffered.length === 0) return
+
+      const ahead = buffered.end(buffered.length - 1) - videoElement.currentTime
+      const rate = nextPlaybackRate(ahead, videoElement.playbackRate)
+      if (rate !== videoElement.playbackRate) videoElement.playbackRate = rate
+    }
+
+    const startTuning = (): void => {
+      stopTuning()
+      tuningTimer = setInterval(tunePlayout, TUNING_INTERVAL_MS)
+    }
+
+    const stopTuning = (): void => {
+      if (tuningTimer) {
+        clearInterval(tuningTimer)
+        tuningTimer = undefined
+      }
+
+      if (videoElement && videoElement.playbackRate !== 1) videoElement.playbackRate = 1
     }
 
     const startStats = (): void => {
@@ -90,6 +137,14 @@ export function useWhepPlayer({
           if (cancelled || !value) return
           // The first snapshot only primes the bitrate computation.
           if (ticks > 1) setStats(value)
+
+          // Adaptive safety net: raise the video buffer only while the network
+          // jitters, and drop back to the minimum as soon as it is calm.
+          latencyState = nextLatencyState(latencyState, value.jitterMs)
+          if (latencyState.targetMs !== appliedLatencyMs) {
+            appliedLatencyMs = latencyState.targetMs
+            current.setVideoLatencyTarget(appliedLatencyMs)
+          }
         })
       }, STATS_INTERVAL_MS)
     }
@@ -112,6 +167,7 @@ export function useWhepPlayer({
       }
 
       stopStats()
+      stopTuning()
       setStats(null)
 
       const current = session
@@ -159,7 +215,11 @@ export function useWhepPlayer({
       }
 
       stopStats()
+      stopTuning()
       setStats(null)
+
+      latencyState = INITIAL_LATENCY_STATE
+      appliedLatencyMs = VIDEO_MIN_BUFFER_MS
 
       const previous = session
       session = null
@@ -187,6 +247,7 @@ export function useWhepPlayer({
           session = null
           void next.close()
           stopStats()
+          stopTuning()
           scheduleRetry()
         },
         onError: (value) => {
@@ -203,6 +264,7 @@ export function useWhepPlayer({
 
         setError(null)
         startStats()
+        startTuning()
       } catch (failure) {
         if (cancelled || finished) return
 
@@ -232,6 +294,7 @@ export function useWhepPlayer({
       if (retryTimer) clearTimeout(retryTimer)
       clearDeadline()
       stopStats()
+      stopTuning()
 
       void session?.close()
       session = null

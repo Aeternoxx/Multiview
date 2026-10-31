@@ -66,6 +66,7 @@ export const fr = {
   'stats.bitrate': 'Débit',
   'stats.fps': 'Images/s',
   'stats.resolution': 'Résolution',
+  'stats.buffer': 'Tampon vidéo',
   'stats.dropped': 'Images perdues',
   'stats.jitter': 'Gigue',
   'availability.online': 'Flux disponible',

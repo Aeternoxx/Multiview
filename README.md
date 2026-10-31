@@ -23,6 +23,15 @@ MultiView is a Windows desktop application built with Electron, React, and TypeS
 
 > **Note:** Some games running in exclusive fullscreen mode may appear above floating windows. This is a Windows limitation: no overlay can be drawn over exclusive fullscreen, whatever the privileges of the application. Borderless fullscreen is recommended. Some anti-cheat protected games (Valorant/Vanguard for instance) also block third-party overlays by design.
 
+### Low latency tips
+
+MultiView already requests the smallest possible playout buffer and only raises it when the measured jitter stays high. The current video buffer delay is shown in the **Statistics** panel. Most of the remaining latency comes from the encoder:
+
+- **OBS, x264:** `tune=zerolatency`, B-frames `0`, keyframe interval `1 s`, `scenecut=0`, CBR.
+- **OBS, NVENC:** low-latency preset, look-ahead off, B-frames `0`.
+- **Audio:** Opus 48 kHz, 20 ms frames (10 ms if your server supports it), FEC enabled, DTX off.
+- **Network:** avoid a TURN relay when the server is on the same network, it adds a round trip.
+
 ## Screenshots
 
 ![MultiView — multiple floating video streams](screenshots/multiview.png)
@@ -116,6 +125,15 @@ MultiView est une application Windows développée avec Electron, React et TypeS
 - **Overlay compatible jeu** — Les fenêtres flottantes épinglées deviennent transparentes aux clics dès qu'une autre application (un jeu) a le focus : la souris et le clavier restent au jeu. Ramène MultiView au premier plan pour les manipuler à nouveau.
 
 > **À noter :** Certains jeux en plein écran exclusif peuvent passer devant les fenêtres flottantes. C'est une limite de Windows : aucun overlay ne peut être affiché par-dessus le plein écran exclusif, quels que soient les privilèges de l'application. Le mode plein écran sans bordure est recommandé. Certains jeux protégés par un anti-cheat (Valorant/Vanguard par exemple) bloquent aussi les overlays tiers par conception.
+
+### Conseils faible latence
+
+MultiView demande déjà le plus petit tampon de lecture possible et ne l'augmente que si la gigue mesurée reste élevée. La latence du tampon vidéo est affichée dans le panneau **Statistiques**. L'essentiel de la latence restante vient de l'encodeur :
+
+- **OBS, x264 :** `tune=zerolatency`, B-frames `0`, intervalle d'images clés `1 s`, `scenecut=0`, CBR.
+- **OBS, NVENC :** preset faible latence, look-ahead désactivé, B-frames `0`.
+- **Audio :** Opus 48 kHz, trames de 20 ms (10 ms si ton serveur le permet), FEC activé, DTX désactivé.
+- **Réseau :** évite le relais TURN quand le serveur est sur le même réseau, il ajoute un aller-retour.
 
 ## Screenshots
 
