@@ -4,6 +4,7 @@ import {
   INITIAL_LATENCY_STATE,
   VIDEO_MIN_BUFFER_MS,
   VIDEO_SAFE_BUFFER_MS,
+  bufferDeltaMs,
   nextLatencyState,
   nextPlaybackRate,
   type LatencyState
@@ -73,5 +74,50 @@ describe('nextPlaybackRate', () => {
 
   it('falls back to the normal rate on invalid input', () => {
     expect(nextPlaybackRate(Number.NaN, CATCH_UP_RATE)).toBe(1)
+  })
+})
+
+describe('bufferDeltaMs', () => {
+  it('needs a previous snapshot', () => {
+    expect(bufferDeltaMs(null, { delaySeconds: 1, emittedCount: 30 })).toBeNull()
+    expect(bufferDeltaMs({ delaySeconds: 0, emittedCount: 0 }, null)).toBeNull()
+  })
+
+  it('reports the average buffer time over the last interval', () => {
+    expect(
+      bufferDeltaMs({ delaySeconds: 0, emittedCount: 0 }, { delaySeconds: 2.4, emittedCount: 60 })
+    ).toBe(40)
+    expect(
+      bufferDeltaMs(
+        { delaySeconds: 10, emittedCount: 300 },
+        { delaySeconds: 10.9, emittedCount: 330 }
+      )
+    ).toBe(30)
+  })
+
+  it('follows a drop back to the minimum instead of a lifetime average', () => {
+    const before = bufferDeltaMs(
+      { delaySeconds: 0, emittedCount: 0 },
+      { delaySeconds: 4.8, emittedCount: 60 }
+    )
+    const after = bufferDeltaMs(
+      { delaySeconds: 4.8, emittedCount: 60 },
+      { delaySeconds: 4.86, emittedCount: 120 }
+    )
+
+    expect(before).toBe(80)
+    expect(after).toBe(1)
+  })
+
+  it('ignores reset or stalled counters', () => {
+    expect(
+      bufferDeltaMs({ delaySeconds: 5, emittedCount: 100 }, { delaySeconds: 0.5, emittedCount: 3 })
+    ).toBeNull()
+    expect(
+      bufferDeltaMs(
+        { delaySeconds: 5, emittedCount: 100 },
+        { delaySeconds: 5.2, emittedCount: 100 }
+      )
+    ).toBeNull()
   })
 })

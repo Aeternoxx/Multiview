@@ -69,3 +69,33 @@ export function nextPlaybackRate(aheadSeconds: number, currentRate: number): num
   if (aheadSeconds < CATCH_UP_STOP_S) return 1
   return currentRate
 }
+
+export type BufferSample = {
+  /** Cumulative seconds spent in the jitter buffer. */
+  delaySeconds: number
+  /** Cumulative number of frames emitted from the jitter buffer. */
+  emittedCount: number
+}
+
+/**
+ * Average time spent in the jitter buffer per frame since the previous sample.
+ *
+ * The raw WebRTC counters are cumulative since the start of the session, so
+ * dividing them directly yields a lifetime average that can only creep up. The
+ * delta between two snapshots reflects the current buffer latency, including
+ * the drop back to the minimum after a jittery period.
+ */
+export function bufferDeltaMs(
+  previous: BufferSample | null,
+  current: BufferSample | null
+): number | null {
+  if (!previous || !current) return null
+
+  const delay = current.delaySeconds - previous.delaySeconds
+  const count = current.emittedCount - previous.emittedCount
+
+  // A negative or empty delta means the counters were reset (new session).
+  if (count <= 0 || delay < 0) return null
+
+  return Math.round((delay / count) * 1000)
+}

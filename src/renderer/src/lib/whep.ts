@@ -1,4 +1,4 @@
-import { AUDIO_BUFFER_MS, VIDEO_MIN_BUFFER_MS } from './latency'
+import { AUDIO_BUFFER_MS, VIDEO_MIN_BUFFER_MS, bufferDeltaMs, type BufferSample } from './latency'
 
 export type WhepStatus =
   'idle' | 'connecting' | 'negotiating' | 'waiting' | 'live' | 'disconnected' | 'error'
@@ -79,6 +79,7 @@ export class WhepSession {
 
   private lastBytes = 0
   private lastStatsAt = 0
+  private lastBuffer: BufferSample | null = null
 
   constructor(options: WhepSessionOptions = {}) {
     this.options = options
@@ -249,6 +250,10 @@ export class WhepSession {
       this.lastBytes = bytes
       this.lastStatsAt = now
 
+      const sample = readBufferSample(inbound)
+      const bufferMs = bufferDeltaMs(this.lastBuffer, sample)
+      if (sample) this.lastBuffer = sample
+
       return {
         bitrateKbps,
         fps: inbound.framesPerSecond ?? null,
@@ -256,7 +261,7 @@ export class WhepSession {
         height: inbound.frameHeight ?? null,
         droppedFrames: inbound.framesDropped ?? null,
         jitterMs: typeof inbound.jitter === 'number' ? inbound.jitter * 1000 : null,
-        bufferMs: averageBufferMs(inbound)
+        bufferMs
       }
     } catch {
       return null
@@ -377,13 +382,13 @@ export class WhepSession {
   }
 }
 
-function averageBufferMs(stats: InboundVideoStats): number | null {
-  const delay = stats.jitterBufferDelay
-  const emitted = stats.jitterBufferEmittedCount
+function readBufferSample(stats: InboundVideoStats): BufferSample | null {
+  const delaySeconds = stats.jitterBufferDelay
+  const emittedCount = stats.jitterBufferEmittedCount
 
-  if (typeof delay !== 'number' || typeof emitted !== 'number' || emitted <= 0) return null
+  if (typeof delaySeconds !== 'number' || typeof emittedCount !== 'number') return null
 
-  return Math.round((delay / emitted) * 1000)
+  return { delaySeconds, emittedCount }
 }
 
 function applyLowLatency(receiver: RTCRtpReceiver, targetMs: number): void {
