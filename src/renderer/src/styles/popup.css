@@ -108,6 +108,33 @@ body:has(.popup-app) #root {
   background: var(--accent);
 }
 
+/* Shown while another application owns the focus: the window is click-through,
+   so the controls are unreachable and replaced by this passive indicator. */
+.popup-lock {
+  position: absolute;
+  z-index: 20;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 7px;
+  background: rgb(15 17 23 / 82%);
+  color: rgb(255 255 255 / 78%);
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  -webkit-app-region: no-drag;
+}
+
+.popup-player:hover .popup-lock,
+.popup-player.is-hovered .popup-lock {
+  opacity: 1;
+}
+
 .popup-player .audio-controls {
   right: 10px;
   bottom: 10px;

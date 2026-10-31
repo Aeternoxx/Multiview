@@ -42,6 +42,7 @@ export function PopupApp({ params }: PopupAppProps): React.JSX.Element {
   const [pinned, setPinned] = useState(params.get('streamPinned') !== '0')
   const [showStats, setShowStats] = useState(false)
   const [hovered, setHovered] = useState(false)
+  const [clickThrough, setClickThrough] = useState(false)
 
   const { status, error, stats, retry } = useWhepPlayer({
     url: stream.url,
@@ -57,6 +58,11 @@ export function PopupApp({ params }: PopupAppProps): React.JSX.Element {
   // The whole window is a native drag region, so hover is reported by the main
   // process (see pollStreamWindowHover) instead of relying on mouse events.
   useEffect(() => window.api.onStreamWindowHover(setHovered), [])
+
+  // The main process turns the window click-through while another application
+  // owns the focus. The controls are then unreachable, so they are replaced by
+  // a lock badge instead of being shown as if they were clickable.
+  useEffect(() => window.api.onStreamWindowPointerMode(setClickThrough), [])
 
   useEffect(() => {
     const video = videoRef.current
@@ -80,7 +86,9 @@ export function PopupApp({ params }: PopupAppProps): React.JSX.Element {
 
   return (
     <main className="popup-app">
-      <div className={`popup-player${hovered ? ' is-hovered' : ''}`}>
+      <div
+        className={`popup-player${hovered ? ' is-hovered' : ''}${clickThrough ? ' is-locked' : ''}`}
+      >
         <video
           ref={videoRef}
           className="stream-video"
@@ -124,55 +132,64 @@ export function PopupApp({ params }: PopupAppProps): React.JSX.Element {
           </div>
         )}
 
-        <div className="popup-topbar">
-          <button
-            className="popup-return-button"
-            onClick={() => void window.api.returnToApp(stream.id)}
-          >
-            <Icon name="back" size={14} />
-            {t('stream.detached.return')}
-          </button>
-
-          <div className="popup-window-actions">
-            <button
-              className={showStats ? 'active' : ''}
-              onClick={() => setShowStats((value) => !value)}
-              title={t('stream.stats')}
-              aria-label={t('stream.stats')}
-              aria-pressed={showStats}
-            >
-              <Icon name="stats" size={15} />
-            </button>
-            <button
-              className={pinned ? 'active' : ''}
-              onClick={togglePinned}
-              title={pinned ? t('stream.unpin') : t('stream.pin')}
-              aria-label={pinned ? t('stream.unpin') : t('stream.pin')}
-              aria-pressed={pinned}
-            >
-              <Icon name="pin" size={15} />
-            </button>
-            <button
-              onClick={() => void window.api.toggleStreamWindowFullscreen(stream.id)}
-              title={t('stream.fullscreen')}
-              aria-label={t('stream.fullscreen')}
-            >
-              <Icon name="fullscreen" size={15} />
-            </button>
-            <button
-              className="popup-close"
-              onClick={() => void window.api.closeStreamWindow(stream.id)}
-              title={t('stream.closeWindow')}
-              aria-label={t('stream.closeWindow')}
-            >
-              <Icon name="close" size={15} />
-            </button>
+        {clickThrough ? (
+          <div className="popup-lock" role="status" title={t('stream.lockedHint')}>
+            <Icon name="lock" size={13} />
+            <span>{t('stream.locked')}</span>
           </div>
-        </div>
+        ) : (
+          <div className="popup-topbar">
+            <button
+              className="popup-return-button"
+              onClick={() => void window.api.returnToApp(stream.id)}
+            >
+              <Icon name="back" size={14} />
+              {t('stream.detached.return')}
+            </button>
+
+            <div className="popup-window-actions">
+              <button
+                className={showStats ? 'active' : ''}
+                onClick={() => setShowStats((value) => !value)}
+                title={t('stream.stats')}
+                aria-label={t('stream.stats')}
+                aria-pressed={showStats}
+              >
+                <Icon name="stats" size={15} />
+              </button>
+              <button
+                className={pinned ? 'active' : ''}
+                onClick={togglePinned}
+                title={pinned ? t('stream.unpin') : t('stream.pin')}
+                aria-label={pinned ? t('stream.unpin') : t('stream.pin')}
+                aria-pressed={pinned}
+              >
+                <Icon name="pin" size={15} />
+              </button>
+              <button
+                onClick={() => void window.api.toggleStreamWindowFullscreen(stream.id)}
+                title={t('stream.fullscreen')}
+                aria-label={t('stream.fullscreen')}
+              >
+                <Icon name="fullscreen" size={15} />
+              </button>
+              <button
+                className="popup-close"
+                onClick={() => void window.api.closeStreamWindow(stream.id)}
+                title={t('stream.closeWindow')}
+                aria-label={t('stream.closeWindow')}
+              >
+                <Icon name="close" size={15} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {showStats && <StatsPanel stats={stats} />}
 
-        <AudioControls name={stream.name} audio={audio} onChange={setAudio} compact />
+        {!clickThrough && (
+          <AudioControls name={stream.name} audio={audio} onChange={setAudio} compact />
+        )}
       </div>
     </main>
   )

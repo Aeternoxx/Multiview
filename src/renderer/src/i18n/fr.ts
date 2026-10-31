@@ -60,6 +60,8 @@ export const fr = {
   'stream.pin': 'Épingler au-dessus des autres fenêtres',
   'stream.unpin': 'Désépingler la fenêtre',
   'stream.closeWindow': 'Fermer la fenêtre',
+  'stream.locked': 'Contrôle du jeu actif',
+  'stream.lockedHint': 'Active MultiView pour reprendre la main sur cette fenêtre',
   'stream.detachFailed': 'Impossible d’ouvrir la fenêtre flottante.',
   'stats.bitrate': 'Débit',
   'stats.fps': 'Images/s',

@@ -19,8 +19,9 @@ MultiView is a Windows desktop application built with Electron, React, and TypeS
 - **Stream management** — Add, rename, remove, and reattach streams; reorder them by dragging.
 - **Manual playback** — Start streams whenever you're ready, individually or all at once.
 - **Local storage** — Your saved stream sources stay on your computer.
+- **Game-safe overlay** — Pinned floating windows become click-through as soon as another application (a game) has the focus, so the mouse and keyboard stay with the game. Bring MultiView back to the front to interact with them again.
 
-> **Note:** Some games running in exclusive fullscreen mode may appear above floating windows. Borderless fullscreen is recommended.
+> **Note:** Some games running in exclusive fullscreen mode may appear above floating windows. This is a Windows limitation: no overlay can be drawn over exclusive fullscreen, whatever the privileges of the application. Borderless fullscreen is recommended. Some anti-cheat protected games (Valorant/Vanguard for instance) also block third-party overlays by design.
 
 ## Screenshots
 
@@ -112,8 +113,9 @@ MultiView est une application Windows développée avec Electron, React et TypeS
 - **Gestion des flux** — Ajoute, renomme, supprime et réintègre les flux ; réordonne-les par glisser-déposer.
 - **Lecture manuelle** — Lance les flux quand tu le souhaites, individuellement ou tous à la fois.
 - **Stockage local** — Les sources enregistrées restent sur ton ordinateur.
+- **Overlay compatible jeu** — Les fenêtres flottantes épinglées deviennent transparentes aux clics dès qu'une autre application (un jeu) a le focus : la souris et le clavier restent au jeu. Ramène MultiView au premier plan pour les manipuler à nouveau.
 
-> **À noter :** Certains jeux en plein écran exclusif peuvent passer devant les fenêtres flottantes. Le mode plein écran sans bordure est recommandé.
+> **À noter :** Certains jeux en plein écran exclusif peuvent passer devant les fenêtres flottantes. C'est une limite de Windows : aucun overlay ne peut être affiché par-dessus le plein écran exclusif, quels que soient les privilèges de l'application. Le mode plein écran sans bordure est recommandé. Certains jeux protégés par un anti-cheat (Valorant/Vanguard par exemple) bloquent aussi les overlays tiers par conception.
 
 ## Screenshots
 

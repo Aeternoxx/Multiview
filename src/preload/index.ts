@@ -26,7 +26,8 @@ const api: MultiviewApi = {
   onStreamWindowClosed: (callback) => subscribe('stream-window-closed', callback),
   onStreamWindowReturned: (callback) => subscribe('stream-window-returned', callback),
   onStreamAudioUpdated: (callback) => subscribe('stream-audio-updated', callback),
-  onStreamWindowHover: (callback) => subscribe('stream-window-hover', callback)
+  onStreamWindowHover: (callback) => subscribe('stream-window-hover', callback),
+  onStreamWindowPointerMode: (callback) => subscribe('stream-window-pointer-mode', callback)
 }
 
 if (process.contextIsolated) {

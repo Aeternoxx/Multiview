@@ -13,6 +13,7 @@ type IconName =
   | 'keyboard'
   | 'settings'
   | 'pin'
+  | 'lock'
   | 'close'
   | 'check'
   | 'back'
@@ -107,6 +108,13 @@ function shape(name: IconName): React.JSX.Element {
         <>
           <path d="M9 4h6l-1 6 3.6 3.4H6.4L10 10 9 4Z" />
           <path d="M12 13.4V20" />
+        </>
+      )
+    case 'lock':
+      return (
+        <>
+          <rect x="4.5" y="10.5" width="15" height="9.5" rx="2" />
+          <path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7" />
         </>
       )
     case 'close':

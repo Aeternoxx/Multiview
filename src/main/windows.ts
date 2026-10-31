@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, shell } from 'electron'
+import { app, BrowserWindow, screen, shell } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -11,6 +11,9 @@ type StreamWindowEntry = {
   lastBounds: Electron.Rectangle
   returning: boolean
   hovered: boolean
+  pinned: boolean
+  /** Last click-through state sent to the renderer, to avoid redundant IPC. */
+  clickThrough: boolean
 }
 
 const streamWindows = new Map<string, StreamWindowEntry>()
@@ -24,7 +27,15 @@ const MAIN_MIN_HEIGHT = 520
 /** The cursor is polled so the popup controls also react over the drag region. */
 const HOVER_POLL_MS = 80
 
+/**
+ * Focus moves between our own windows (main <-> popup) emit a blur immediately
+ * followed by a focus. Applying the mode without a short delay would flash the
+ * click-through state and steal a frame from the renderer.
+ */
+const FOCUS_DEBOUNCE_MS = 40
+
 let hoverTimer: ReturnType<typeof setInterval> | null = null
+let focusTimer: NodeJS.Timeout | null = null
 
 export function getMainWindow(): BrowserWindow | null {
   return mainWindow && !mainWindow.isDestroyed() ? mainWindow : null
@@ -34,6 +45,63 @@ export function sendToMain(channel: string, ...args: unknown[]): void {
   const window = getMainWindow()
   if (window) window.webContents.send(channel, ...args)
 }
+
+function multiviewHasFocus(): boolean {
+  const focused = BrowserWindow.getFocusedWindow()
+  if (focused && !focused.isDestroyed()) return true
+
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused()) return true
+
+  for (const entry of streamWindows.values()) {
+    if (!entry.window.isDestroyed() && entry.window.isFocused()) return true
+  }
+
+  return false
+}
+
+/**
+ * Click-through is automatic and focus driven: while another application (a
+ * game, typically) owns the focus, pinned floating windows let mouse and
+ * keyboard through so the game keeps control. Bringing MultiView back to the
+ * front restores them. Unpinned windows are normal desktop windows and are
+ * never affected.
+ *
+ * Electron has no global switch, so the state is applied to every window.
+ */
+function applyPointerMode(): void {
+  const interactive = multiviewHasFocus()
+
+  for (const entry of streamWindows.values()) {
+    const { window } = entry
+    if (window.isDestroyed()) continue
+
+    const clickThrough = !interactive && entry.pinned
+
+    window.setFocusable(!clickThrough)
+
+    if (clickThrough) {
+      window.setIgnoreMouseEvents(true, { forward: true })
+    } else {
+      window.setIgnoreMouseEvents(false)
+    }
+
+    if (clickThrough !== entry.clickThrough) {
+      entry.clickThrough = clickThrough
+      window.webContents.send('stream-window-pointer-mode', clickThrough)
+    }
+  }
+}
+
+function schedulePointerMode(): void {
+  if (focusTimer) clearTimeout(focusTimer)
+  focusTimer = setTimeout(() => {
+    focusTimer = null
+    applyPointerMode()
+  }, FOCUS_DEBOUNCE_MS)
+}
+
+app.on('browser-window-focus', schedulePointerMode)
+app.on('browser-window-blur', schedulePointerMode)
 
 function openExternalSafe(rawUrl: string): void {
   try {
@@ -276,7 +344,9 @@ export function openStreamWindow(payload: StreamWindowPayload): void {
     ratio: null,
     lastBounds: bounds,
     returning: false,
-    hovered: false
+    hovered: false,
+    pinned,
+    clickThrough: false
   }
 
   streamWindows.set(payload.id, entry)
@@ -285,10 +355,11 @@ export function openStreamWindow(payload: StreamWindowPayload): void {
 
   window.setAlwaysOnTop(pinned, 'screen-saver')
   window.setSkipTaskbar(pinned)
+  applyPointerMode()
 
   // Keep detached video windows above other applications, including games.
   window.on('show', () => {
-    if (!window.isDestroyed() && isPinned(payload.id)) {
+    if (!window.isDestroyed() && entry.pinned) {
       window.setAlwaysOnTop(true, 'screen-saver')
     }
   })
@@ -300,6 +371,8 @@ export function openStreamWindow(payload: StreamWindowPayload): void {
   // The renderer starts with no hover state: force the next poll to send it.
   window.webContents.on('did-finish-load', () => {
     entry.hovered = false
+    entry.clickThrough = false
+    applyPointerMode()
   })
 
   window.on('closed', () => {
@@ -307,7 +380,14 @@ export function openStreamWindow(payload: StreamWindowPayload): void {
       streamWindows.delete(payload.id)
     }
 
-    if (streamWindows.size === 0) stopHoverPolling()
+    if (streamWindows.size === 0) {
+      stopHoverPolling()
+
+      if (focusTimer) {
+        clearTimeout(focusTimer)
+        focusTimer = null
+      }
+    }
 
     if (!entry.returning && getMainWindow()) {
       sendToMain('stream-window-closed', payload.id)
@@ -374,8 +454,10 @@ export function setStreamPinned(id: string, pinned: boolean): void {
   const entry = streamWindows.get(id)
   if (!entry || entry.window.isDestroyed()) return
 
+  entry.pinned = pinned
   entry.window.setAlwaysOnTop(pinned, 'screen-saver')
   entry.window.setSkipTaskbar(pinned)
+  applyPointerMode()
 }
 
 export function toggleStreamFullscreen(id: string): void {
@@ -387,6 +469,11 @@ export function toggleStreamFullscreen(id: string): void {
 
 export function closeAllStreamWindows(): void {
   stopHoverPolling()
+
+  if (focusTimer) {
+    clearTimeout(focusTimer)
+    focusTimer = null
+  }
 
   for (const entry of streamWindows.values()) {
     entry.returning = true

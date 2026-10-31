@@ -62,6 +62,8 @@ export const en: Record<keyof typeof fr, string> = {
   'stream.pin': 'Pin above other windows',
   'stream.unpin': 'Unpin window',
   'stream.closeWindow': 'Close window',
+  'stream.locked': 'Game control active',
+  'stream.lockedHint': 'Focus MultiView to interact with this window',
   'stream.detachFailed': 'Unable to open the floating window.',
   'stats.bitrate': 'Bitrate',
   'stats.fps': 'FPS',

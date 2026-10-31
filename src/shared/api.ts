@@ -20,4 +20,5 @@ export type MultiviewApi = {
   onStreamWindowReturned: (callback: (id: string) => void) => () => void
   onStreamAudioUpdated: (callback: (update: StreamAudioUpdate) => void) => () => void
   onStreamWindowHover: (callback: (hovered: boolean) => void) => () => void
+  onStreamWindowPointerMode: (callback: (clickThrough: boolean) => void) => () => void
 }
