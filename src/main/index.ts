@@ -4,6 +4,7 @@ import { readFile, writeFile } from 'fs/promises'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { STREAM_NAME_MAX_LENGTH } from '../shared/types'
 import type { AudioState, ImportedStreams, Stream, StreamWindowPayload } from '../shared/types'
+import { relaxFetchMetadata } from './network'
 import { flushSettings, resetLayout } from './settings'
 import {
   closeAllStreamWindows,
@@ -209,6 +210,10 @@ if (!hasSingleInstanceLock) {
 
   app.whenReady().then(() => {
     electronApp.setAppUserModelId(APP_USER_MODEL_ID)
+
+    // Must run before any window opens so the very first WHEP request is
+    // already free of the Fetch Metadata headers.
+    relaxFetchMetadata()
 
     app.on('browser-window-created', (_event, window) => {
       optimizer.watchWindowShortcuts(window)
