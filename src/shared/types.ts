@@ -39,5 +39,14 @@ export type AppState = {
   version: string
 }
 
+export type UpdateInfo = {
+  /** Published version, without the leading `v` (for example `1.2.5`). */
+  version: string
+  /** Direct link to the Windows installer when the release ships one. */
+  downloadUrl: string | null
+  /** Release page, always available as a fallback. */
+  releaseUrl: string
+}
+
 export const STREAM_ID_MAX_LENGTH = 120
 export const STREAM_NAME_MAX_LENGTH = 80

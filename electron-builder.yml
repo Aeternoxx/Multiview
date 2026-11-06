@@ -28,6 +28,14 @@ nsis:
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+  # Registry key of the uninstall entry
+  # (HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\<guid>). Pinned on
+  # purpose: electron-builder derives it from appId, so a future appId change
+  # would add a second "MultiView" line in Windows instead of replacing the
+  # previous install. Never change this value.
+  guid: b1bf15be-c8e2-5ca5-aaea-3f91a0633882
+  # Removes the uninstall entry left by builds that predate the current appId.
+  include: build/installer.nsh
 portable:
   artifactName: ${productName}-${version}-portable.${ext}
 mac:

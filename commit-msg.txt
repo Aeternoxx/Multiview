@@ -1,0 +1,7 @@
+Release v1.2.5: update pill and a single Windows install entry
+
+- Poll the latest GitHub release at start-up, then every six hours, and show a discreet pill next to the version in the footer. Clicking it downloads the release installer directly, or opens the release page when the release ships no setup asset.
+
+- Pin the NSIS uninstall GUID so a new build always replaces the previous install instead of adding a second line in Windows > Apps, and delete the orphan entry left by builds that predate the current appId.
+
+- Publish releases automatically with a generated changelog instead of leaving a draft.

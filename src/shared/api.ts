@@ -1,4 +1,11 @@
-import type { AppState, AudioState, ImportedStreams, Stream, StreamWindowPayload } from './types'
+import type {
+  AppState,
+  AudioState,
+  ImportedStreams,
+  Stream,
+  StreamWindowPayload,
+  UpdateInfo
+} from './types'
 
 export type StreamAudioUpdate = AudioState & { id: string }
 
@@ -16,6 +23,8 @@ export type MultiviewApi = {
   resetWindowLayout: () => Promise<void>
   exportStreams: (streams: Stream[]) => Promise<boolean>
   importStreams: () => Promise<ImportedStreams | null>
+  checkForUpdate: () => Promise<UpdateInfo | null>
+  openUpdate: () => Promise<void>
   onStreamWindowClosed: (callback: (id: string) => void) => () => void
   onStreamWindowReturned: (callback: (id: string) => void) => () => void
   onStreamAudioUpdated: (callback: (update: StreamAudioUpdate) => void) => () => void

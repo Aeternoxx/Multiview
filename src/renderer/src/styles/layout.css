@@ -147,6 +147,38 @@
   font-size: 11px;
 }
 
+.footer .update-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  border: 1px solid rgba(101, 88, 232, 0.55);
+  border-radius: 999px;
+  background: rgba(101, 88, 232, 0.16);
+  color: #b6aefe;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.footer .update-pill:hover {
+  border-color: var(--accent-hover);
+  background: rgba(101, 88, 232, 0.3);
+  color: #e7eaf0;
+}
+
+.footer .update-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  box-shadow: 0 0 6px var(--accent-soft);
+}
+
 .footer-tech {
   color: var(--text-dim);
 }

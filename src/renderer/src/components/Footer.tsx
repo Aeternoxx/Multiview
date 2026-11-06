@@ -1,10 +1,12 @@
 import { useI18n } from '../i18n'
+import type { UpdateInfo } from '@shared/types'
 
 type FooterProps = {
   version: string
+  update: UpdateInfo | null
 }
 
-export function Footer({ version }: FooterProps): React.JSX.Element {
+export function Footer({ version, update }: FooterProps): React.JSX.Element {
   const { language, setLanguage, t } = useI18n()
 
   return (
@@ -12,6 +14,17 @@ export function Footer({ version }: FooterProps): React.JSX.Element {
       <div className="footer-left">
         <strong>MultiView</strong>
         {version && <span className="version">v{version}</span>}
+        {update && (
+          <button
+            type="button"
+            className="update-pill"
+            onClick={() => void window.api.openUpdate()}
+            title={t('footer.updateHint')}
+          >
+            <span className="update-pill-dot" aria-hidden="true" />
+            {t('footer.update', { version: update.version })}
+          </button>
+        )}
         <span className="footer-tech">WHEP · WebRTC</span>
       </div>
 

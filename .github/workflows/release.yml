@@ -38,8 +38,11 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
+          name: MultiView ${{ github.ref_name }}
+          # Publishes straight away with a generated changelog: no manual click
+          # and no personal token needed, the workflow token is enough.
+          generate_release_notes: true
           files: |
             dist/*.exe
             dist/*.zip
             dist/latest.yml
-          draft: true

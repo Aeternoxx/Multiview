@@ -6,6 +6,7 @@ import { STREAM_NAME_MAX_LENGTH } from '../shared/types'
 import type { AudioState, ImportedStreams, Stream, StreamWindowPayload } from '../shared/types'
 import { relaxFetchMetadata } from './network'
 import { flushSettings, resetLayout } from './settings'
+import { checkForUpdate, openUpdate } from './updates'
 import {
   closeAllStreamWindows,
   closeStreamWindow,
@@ -190,6 +191,10 @@ function registerIpcHandlers(): void {
   ipcMain.handle('export-streams', (_event, streams: unknown) => exportStreams(streams))
 
   ipcMain.handle('import-streams', () => importStreams())
+
+  ipcMain.handle('check-for-update', () => checkForUpdate())
+
+  ipcMain.handle('open-update', () => openUpdate())
 }
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock()

@@ -100,5 +100,7 @@ export const en: Record<keyof typeof fr, string> = {
   'settings.notice.importFailed': 'No stream imported.',
   'settings.notice.reset': 'Layout reset.',
   'footer.language': 'Language',
+  'footer.update': 'Update {version} available',
+  'footer.updateHint': 'Download and install the new version',
   'footer.support': 'Ko-fi'
 }

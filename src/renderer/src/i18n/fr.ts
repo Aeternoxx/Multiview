@@ -99,6 +99,8 @@ export const fr = {
   'settings.notice.importFailed': 'Aucun flux importé.',
   'settings.notice.reset': 'Disposition réinitialisée.',
   'footer.language': 'Langue',
+  'footer.update': 'Mise à jour {version} disponible',
+  'footer.updateHint': 'Télécharger et installer la nouvelle version',
   'footer.support': 'Ko-fi'
 } as const
 

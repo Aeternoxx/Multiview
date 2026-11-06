@@ -9,6 +9,7 @@ import {
 import type { AppState, AudioState, Stream } from '@shared/types'
 import { useI18n, type TranslationKey } from '../i18n'
 import { usePersistentState } from '../hooks/usePersistentState'
+import { useUpdateCheck } from '../hooks/useUpdateCheck'
 import { newStreamId } from '../lib/id'
 import { DEFAULT_ICE_CONFIG, parseIceConfig, toIceServers, type IceConfig } from '../lib/ice'
 import {
@@ -77,6 +78,7 @@ export function MainApp(): React.JSX.Element {
   const [appState, setAppState] = useState<AppState>({ version: '' })
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const gridRef = useRef<HTMLDivElement>(null)
+  const update = useUpdateCheck()
 
   const iceServers = useMemo(() => toIceServers(ice), [ice])
 
@@ -474,7 +476,7 @@ export function MainApp(): React.JSX.Element {
         )}
       </section>
 
-      <Footer version={appState.version} />
+      <Footer version={appState.version} update={update} />
 
       <SettingsDialog
         open={settingsOpen}
