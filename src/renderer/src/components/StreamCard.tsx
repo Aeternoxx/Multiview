@@ -7,7 +7,6 @@
 } from 'react'
 import type { AudioState, Stream } from '@shared/types'
 import { useI18n, type TranslationKey } from '../i18n'
-import { useStreamAvailability } from '../hooks/useStreamAvailability'
 import { useWhepPlayer } from '../hooks/useWhepPlayer'
 import { describeWhepError } from '../lib/errors'
 import type { TileSize } from '../lib/storage'
@@ -20,16 +19,13 @@ import { StatsPanel } from './StatsPanel'
 
 type StreamCardProps = {
   stream: Stream
-  running: boolean
   audio: AudioState
   solo: boolean
   size?: TileSize
   aspectRatio?: number
   iceServers: RTCIceServer[]
-  onToggle: (id: string) => void
+  onStop: (id: string) => void
   onUnavailable: (id: string) => void
-  onRemove: (id: string) => void
-  onEdit: (stream: Stream) => void
   onDetach: (stream: Stream) => void
   onAudioChange: (id: string, audio: AudioState) => void
   onSolo: (id: string) => void
@@ -62,18 +58,21 @@ function availabilityLabel(availability: Availability): TranslationKey {
   return 'availability.checking'
 }
 
+/**
+ * Live view tile: a single playing stream. Unlike the old mixed card, it only
+ * exists while the stream runs; management (edit, delete, availability) lives
+ * in the Library. The name chip replaces the header block to keep the video
+ * surface as large as possible.
+ */
 export function StreamCard({
   stream,
-  running,
   audio,
   solo,
   size,
   aspectRatio,
   iceServers,
-  onToggle,
+  onStop,
   onUnavailable,
-  onRemove,
-  onEdit,
   onDetach,
   onAudioChange,
   onSolo,
@@ -87,7 +86,7 @@ export function StreamCard({
   const handleUnavailable = useCallback((): void => {
     // Reconnection failed for the whole window: forget any previous "online"
     // result and let the background probe decide whether the stream is still
-    // published, then return the tile to its stopped state.
+    // published, then return the tile to the Library's stopped state.
     invalidateProbeCache(stream.url)
     setAvailability(stream.url, 'checking')
     onUnavailable(stream.id)
@@ -95,22 +94,17 @@ export function StreamCard({
 
   const { status, error, stats, retry } = useWhepPlayer({
     url: stream.url,
-    active: running,
+    active: true,
     iceServers,
     videoRef,
     onUnavailable: handleUnavailable
-  })
-  const availability = useStreamAvailability({
-    url: stream.url,
-    enabled: !running,
-    iceServers
   })
 
   useEffect(() => {
     // Presence is unknown while the stream is playing; never reuse a probe
     // result from before playback when the tile stops again.
-    if (running) invalidateProbeCache(stream.url)
-  }, [running, stream.url])
+    invalidateProbeCache(stream.url)
+  }, [stream.url])
 
   const [hasVideo, setHasVideo] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -130,21 +124,8 @@ export function StreamCard({
     return () => document.removeEventListener('fullscreenchange', onChange)
   }, [])
 
-  const dotState: Availability = running
-    ? status === 'live'
-      ? 'online'
-      : status === 'error'
-        ? 'offline'
-        : 'checking'
-    : availability
-
-  // Playback is only allowed once the stream has been detected.
-  const startBlocked = !running && availability === 'offline'
-  const startLabel = running
-    ? t('stream.stop')
-    : startBlocked
-      ? t('stream.startUnavailable')
-      : t('stream.start')
+  const dotState: Availability =
+    status === 'live' ? 'online' : status === 'error' ? 'offline' : 'checking'
 
   const toggleFullscreen = async (): Promise<void> => {
     try {
@@ -155,91 +136,8 @@ export function StreamCard({
     }
   }
 
-  const statusText = running
-    ? t(statusKey(status))
-    : `${t('stream.status.stopped')} · ${t(
-        availability === 'online'
-          ? 'stream.status.online'
-          : availability === 'offline'
-            ? 'stream.status.offline'
-            : 'stream.status.checking'
-      )}`
-
   return (
-    <article className="stream-card">
-      <div className="stream-info">
-        <div className="stream-details">
-          <h3>{stream.name}</h3>
-          <p title={stream.url}>{stream.url}</p>
-
-          <div className="status-line">
-            <span
-              className={`availability-dot ${dotState}`}
-              title={t(availabilityLabel(dotState))}
-            />
-            <span className="stream-status">{statusText}</span>
-          </div>
-
-          {error && running && (
-            <p className="player-error inline-error" title={error.message}>
-              {describeWhepError(error, t)}
-            </p>
-          )}
-        </div>
-
-        <div className="stream-actions">
-          <button
-            className="icon-button"
-            onClick={() => onToggle(stream.id)}
-            disabled={startBlocked}
-            title={startLabel}
-            aria-label={startLabel}
-          >
-            <Icon name={running ? 'stop' : 'play'} size={18} />
-          </button>
-
-          {running && (
-            <button
-              className={`icon-button${showStats ? ' active' : ''}`}
-              onClick={() => setShowStats((value) => !value)}
-              title={t('stream.stats')}
-              aria-label={t('stream.stats')}
-              aria-pressed={showStats}
-            >
-              <Icon name="stats" size={15} />
-            </button>
-          )}
-
-          <button
-            className="icon-button"
-            onClick={() => onEdit(stream)}
-            title={t('stream.edit')}
-            aria-label={t('stream.edit')}
-          >
-            <Icon name="edit" size={15} />
-          </button>
-
-          <button
-            className="icon-button"
-            onClick={() => onDetach(stream)}
-            disabled={startBlocked}
-            title={startBlocked ? t('stream.detachUnavailable') : t('stream.detachTitle')}
-            aria-label={t('stream.detach')}
-          >
-            <Icon name="detach" size={15} />
-          </button>
-
-          <button
-            className="delete-button"
-            onClick={() => onRemove(stream.id)}
-            title={t('stream.delete')}
-            aria-label={t('stream.deleteLabel', { name: stream.name })}
-          >
-            <Icon name="trash" size={17} />
-          </button>
-        </div>
-      </div>
-
+    <article className="stream-card live-card">
       <div
         className={`video-container${size ? ' sized-video-container' : ''}`}
         style={!size && aspectRatio ? { aspectRatio: String(aspectRatio) } : undefined}
@@ -252,7 +150,7 @@ export function StreamCard({
           playsInline
           muted={audio.muted}
           onClick={() => {
-            if (videoRef.current && running) void videoRef.current.play()
+            if (videoRef.current) void videoRef.current.play()
           }}
           onLoadedMetadata={(event) => {
             const video = event.currentTarget
@@ -264,40 +162,13 @@ export function StreamCard({
           onEmptied={() => setHasVideo(false)}
         />
 
-        {!running && (
-          <div
-            className={`player-overlay idle-overlay${availability === 'offline' ? ' is-offline' : ''}`}
-          >
-            <span className="video-symbol">
-              <Icon
-                name={
-                  availability === 'online'
-                    ? 'play'
-                    : availability === 'offline'
-                      ? 'offline'
-                      : 'spinner'
-                }
-                size={20}
-                className={availability === 'checking' ? 'icon-spin' : undefined}
-              />
-            </span>
+        <div className="live-name">
+          <span className={`availability-dot ${dotState}`} title={t(availabilityLabel(dotState))} />
+          <span className="live-name-text">{stream.name}</span>
+          <span className="live-status">{t(statusKey(status))}</span>
+        </div>
 
-            <span className="overlay-title">{t(availabilityLabel(availability))}</span>
-
-            {availability === 'offline' && (
-              <span className="overlay-hint">{t('stream.offlineHint')}</span>
-            )}
-
-            {availability === 'online' && (
-              <button className="overlay-action" onClick={() => onToggle(stream.id)}>
-                <Icon name="play" size={14} />
-                {t('stream.start')}
-              </button>
-            )}
-          </div>
-        )}
-
-        {running && (!hasVideo || status !== 'live') && (
+        {(!hasVideo || status !== 'live') && (
           <div className="player-overlay">
             <span className="video-symbol">
               <Icon
@@ -322,13 +193,38 @@ export function StreamCard({
         )}
 
         <div className="view-controls">
+          <button type="button" onClick={() => onStop(stream.id)} title={t('stream.stop')}>
+            <Icon name="stop" size={14} />
+            <span>{t('stream.stop')}</span>
+          </button>
+
+          <button
+            type="button"
+            className={showStats ? 'active' : undefined}
+            onClick={() => setShowStats((value) => !value)}
+            title={t('stream.stats')}
+            aria-label={t('stream.stats')}
+            aria-pressed={showStats}
+          >
+            <Icon name="stats" size={15} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onDetach(stream)}
+            title={t('stream.detachTitle')}
+            aria-label={t('stream.detach')}
+          >
+            <Icon name="detach" size={15} />
+          </button>
+
           <button type="button" onClick={() => void toggleFullscreen()}>
             <Icon name={isFullscreen ? 'exitFullscreen' : 'fullscreen'} size={14} />
-            {isFullscreen ? t('stream.exitFullscreen') : t('stream.fullscreen')}
+            <span>{isFullscreen ? t('stream.exitFullscreen') : t('stream.fullscreen')}</span>
           </button>
         </div>
 
-        {running && showStats && <StatsPanel stats={stats} />}
+        {showStats && <StatsPanel stats={stats} />}
 
         <AudioControls
           name={stream.name}

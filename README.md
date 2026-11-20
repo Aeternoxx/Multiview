@@ -9,6 +9,7 @@ MultiView is a Windows desktop application built with Electron, React, and TypeS
 ## ✨ Features
 
 - **Multiple streams** — Watch several friends' views simultaneously.
+- **Library and Live views** — Manage your streams in a compact library list, watch only the playing ones in the Live view, launch a selection at once and fit the tiles to the window.
 - **Floating windows** — Keep individual streams visible over your game.
 - **Always on top** — Keep detached streams above other windows, with a pin toggle when you need it off.
 - **Audio controls** — Adjust or mute each stream individually, with a solo mode.
@@ -112,6 +113,7 @@ MultiView est une application Windows développée avec Electron, React et TypeS
 ## ✨ Fonctionnalités
 
 - **Flux multiples** — Regarde simultanément les vues de plusieurs amis.
+- **Vues Bibliothèque et Live** — Gère tes flux dans une liste compacte, regarde uniquement ceux en lecture dans la vue Live, lance une sélection en une fois et ajuste les vignettes à la fenêtre.
 - **Fenêtres flottantes** — Garde les flux visibles par-dessus ton jeu.
 - **Toujours au premier plan** — Maintiens les fenêtres détachées au-dessus des autres applications, avec une épingle pour désactiver le mode si besoin.
 - **Contrôle audio** — Règle ou coupe le son de chaque flux indépendamment, avec un mode solo.

@@ -11,6 +11,7 @@ import { useI18n, type TranslationKey } from '../i18n'
 import { usePersistentState } from '../hooks/usePersistentState'
 import { useUpdateCheck } from '../hooks/useUpdateCheck'
 import { newStreamId } from '../lib/id'
+import { getAvailability } from '../lib/availability'
 import { DEFAULT_ICE_CONFIG, parseIceConfig, toIceServers, type IceConfig } from '../lib/ice'
 import {
   DEFAULT_AUDIO,
@@ -27,12 +28,17 @@ import { ConfirmDialog } from './ConfirmDialog'
 import { DetachedCard } from './DetachedCard'
 import { EmptyState } from './EmptyState'
 import { Footer } from './Footer'
+import { Icon } from './Icon'
+import { LibraryRow } from './LibraryRow'
 import { SettingsDialog } from './SettingsDialog'
 import { StreamCard } from './StreamCard'
 import { StreamFormDialog } from './StreamFormDialog'
 import { TopBar } from './TopBar'
 
 type StreamDialogState = { mode: 'add' } | { mode: 'edit'; stream: Stream }
+type View = 'library' | 'live'
+
+const DEFAULT_ASPECT_RATIO = 16 / 9
 
 function nextDefaultName(streams: Stream[]): string {
   const used = new Set<number>()
@@ -71,16 +77,29 @@ export function MainApp(): React.JSX.Element {
   const [runningIds, setRunningIds] = useState<string[]>([])
   const [detachedIds, setDetachedIds] = useState<string[]>([])
   const [aspectRatios, setAspectRatios] = useState<Record<string, number>>({})
+  const [view, setView] = useState<View>('library')
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [streamDialog, setStreamDialog] = useState<StreamDialogState | null>(null)
   const [pendingRemoval, setPendingRemoval] = useState<Stream | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [notice, setNotice] = useState('')
   const [appState, setAppState] = useState<AppState>({ version: '' })
   const [draggedId, setDraggedId] = useState<string | null>(null)
-  const gridRef = useRef<HTMLDivElement>(null)
+  const libraryListRef = useRef<HTMLDivElement>(null)
+  const liveGridRef = useRef<HTMLDivElement>(null)
+  const pendingFitRef = useRef(false)
   const update = useUpdateCheck()
 
   const iceServers = useMemo(() => toIceServers(ice), [ice])
+
+  // Streams on screen in the Live view: playing tiles and floating windows.
+  const liveIds = useMemo(
+    () =>
+      streams
+        .filter((stream) => runningIds.includes(stream.id) || detachedIds.includes(stream.id))
+        .map((stream) => stream.id),
+    [streams, runningIds, detachedIds]
+  )
 
   const getAudio = useCallback(
     (id: string): AudioState => audioMap[id] ?? DEFAULT_AUDIO,
@@ -134,7 +153,7 @@ export function MainApp(): React.JSX.Element {
   useEffect(() => {
     // Measured from the DOM so the workspace padding and the window frame are
     // taken into account without duplicating CSS values here.
-    const grid = gridRef.current
+    const grid = view === 'library' ? libraryListRef.current : liveGridRef.current
     const contentWidth = document.documentElement.clientWidth
     const workspaceChrome = grid
       ? Math.max(0, contentWidth - grid.getBoundingClientRect().width)
@@ -142,7 +161,7 @@ export function MainApp(): React.JSX.Element {
     const frameChrome = Math.max(0, window.outerWidth - window.innerWidth)
 
     void window.api.setMainMinimumWidth(Math.ceil(widestTile + workspaceChrome + frameChrome))
-  }, [widestTile])
+  }, [widestTile, view])
 
   useEffect(() => {
     let cancelled = false
@@ -188,6 +207,7 @@ export function MainApp(): React.JSX.Element {
     setStreams((current) => current.filter((stream) => stream.id !== id))
     setRunningIds((current) => current.filter((item) => item !== id))
     setDetachedIds((current) => current.filter((item) => item !== id))
+    setSelectedIds((current) => current.filter((item) => item !== id))
     setTileSizes((current) => {
       const next = { ...current }
       delete next[id]
@@ -256,15 +276,128 @@ export function MainApp(): React.JSX.Element {
     return null
   }
 
+  /**
+   * Starts a list of streams, then opens the Live view with an automatic fit.
+   * Undetected streams are skipped (playback stays blocked, like the row's
+   * own button does).
+   */
+  const startStreams = useCallback(
+    (ids: string[]): void => {
+      const toStart = ids.filter((id) => {
+        if (runningIds.includes(id)) return false
+
+        const stream = streams.find((item) => item.id === id)
+        return stream !== undefined && getAvailability(stream.url) === 'online'
+      })
+
+      if (toStart.length === 0) return
+
+      setRunningIds((current) => [...current, ...toStart])
+      setSelectedIds((current) => current.filter((item) => !toStart.includes(item)))
+      pendingFitRef.current = true
+      setView('live')
+    },
+    [runningIds, streams]
+  )
+
   const stopStream = useCallback((id: string): void => {
     setRunningIds((current) => current.filter((item) => item !== id))
   }, [])
 
-  const toggleStream = (id: string): void => {
-    setRunningIds((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
-    )
+  const toggleFromLibrary = (id: string): void => {
+    if (detachedIds.includes(id)) {
+      void window.api.closeStreamWindow(id)
+      setRunningIds((current) => current.filter((item) => item !== id))
+      return
+    }
+
+    if (runningIds.includes(id)) stopStream(id)
+    else startStreams([id])
   }
+
+  const stopAllRunning = (): void => {
+    if (runningIds.length === 0 && detachedIds.length === 0) return
+
+    for (const id of detachedIds) void window.api.closeStreamWindow(id)
+    setRunningIds([])
+  }
+
+  /**
+   * Resizes the playing tiles so the grid fills the window: the column count
+   * is the one maximizing each tile's usable area for the stream count and
+   * the average video ratio. The resulting sizes override manual ones; the
+   * resize grip takes precedence back until the next fit.
+   */
+  const autoFitLiveGrid = useCallback((): void => {
+    const count = liveIds.length
+    if (count === 0) return
+
+    const grid = liveGridRef.current
+    if (!grid) return
+
+    const gridRect = grid.getBoundingClientRect()
+    const gridWidth = gridRect.width
+    if (gridWidth <= 0) return
+
+    const style = window.getComputedStyle(grid)
+    const columnGap = parseFloat(style.columnGap) || 18
+    const rowGap = parseFloat(style.rowGap) || columnGap
+
+    const footer = document.querySelector('.footer')
+    const footerHeight = footer?.getBoundingClientRect().height ?? 0
+    const section = grid.closest('.workspace')
+    const workspacePad = section
+      ? parseFloat(window.getComputedStyle(section).paddingBottom) || 12
+      : 12
+    const availHeight = Math.max(
+      MIN_TILE_HEIGHT,
+      window.innerHeight - gridRect.top - footerHeight - workspacePad - 6
+    )
+
+    let ratioSum = 0
+    for (const id of liveIds) ratioSum += aspectRatios[id] ?? DEFAULT_ASPECT_RATIO
+    const avgRatio = ratioSum / count
+
+    let best: { width: number; area: number } | null = null
+    for (let cols = 1; cols <= count; cols += 1) {
+      const rows = Math.ceil(count / cols)
+      const cellW = (gridWidth - (cols - 1) * columnGap) / cols
+      const cellH = (availHeight - (rows - 1) * rowGap) / rows
+      if (cellW < MIN_TILE_WIDTH || cellH < MIN_TILE_HEIGHT) continue
+
+      const width = Math.min(cellW, cellH * avgRatio)
+      const area = width * (width / avgRatio)
+      if (!best || area > best.area) best = { width, area }
+    }
+
+    if (!best) {
+      // Minimum sizes do not fit either: one column, with scrolling.
+      best = {
+        width: Math.min(Math.max(gridWidth, MIN_TILE_WIDTH), availHeight * avgRatio),
+        area: 0
+      }
+    }
+
+    // floor: rounding up would overflow one column and force a line break
+    // (one tile fewer per row).
+    const width = Math.max(MIN_TILE_WIDTH, Math.floor(best.width))
+    const height = Math.max(MIN_TILE_HEIGHT, Math.floor(width / avgRatio))
+
+    setTileSizes((current) => {
+      const next = { ...current }
+      for (const id of liveIds) next[id] = { width, height }
+      return next
+    })
+  }, [liveIds, aspectRatios, setTileSizes])
+
+  // A launch from the Library fits the grid once the Live tiles are rendered.
+  useEffect(() => {
+    if (view !== 'live' || !pendingFitRef.current) return
+
+    pendingFitRef.current = false
+    const frame = requestAnimationFrame(() => autoFitLiveGrid())
+    return () => cancelAnimationFrame(frame)
+  }, [view, liveIds, autoFitLiveGrid])
 
   const detachStream = async (stream: Stream): Promise<void> => {
     const audio = getAudio(stream.id)
@@ -312,8 +445,7 @@ export function MainApp(): React.JSX.Element {
 
     const startX = event.clientX
     const rect = card.getBoundingClientRect()
-    const headerHeight = card.querySelector('.stream-info')?.getBoundingClientRect().height ?? 72
-    const ratio = aspectRatios[id] || rect.width / Math.max(1, rect.height - headerHeight)
+    const ratio = aspectRatios[id] || rect.width / Math.max(1, rect.height)
     const maxWidth = Math.max(MIN_TILE_WIDTH, grid.getBoundingClientRect().width)
 
     let frame = 0
@@ -322,7 +454,7 @@ export function MainApp(): React.JSX.Element {
     const apply = (): void => {
       frame = 0
       const width = Math.max(MIN_TILE_WIDTH, Math.min(maxWidth, pendingWidth))
-      const height = Math.max(MIN_TILE_HEIGHT, width / ratio + headerHeight)
+      const height = Math.max(MIN_TILE_HEIGHT, width / ratio)
       setTileSizes((current) => ({ ...current, [id]: { width, height } }))
     }
 
@@ -394,84 +526,187 @@ export function MainApp(): React.JSX.Element {
         }}
       />
 
-      <section className="workspace">
+      <nav className="view-tabs" role="tablist">
+        <button
+          className={`view-tab${view === 'library' ? ' active' : ''}`}
+          type="button"
+          role="tab"
+          aria-selected={view === 'library'}
+          onClick={() => setView('library')}
+        >
+          {t('tabs.library')}
+        </button>
+        <button
+          className={`view-tab${view === 'live' ? ' active' : ''}`}
+          type="button"
+          role="tab"
+          aria-selected={view === 'live'}
+          onClick={() => setView('live')}
+        >
+          {t('tabs.live')}
+        </button>
+      </nav>
+
+      <section className="workspace" hidden={view !== 'library'}>
         <div className="section-heading">
           <div>
-            <h2>{t('workspace.title')}</h2>
-            <p>{t('workspace.count', { count: streams.length })}</p>
+            <h2>{t('library.title')}</h2>
+            <p>{t('library.count', { count: streams.length })}</p>
           </div>
+
+          {selectedIds.length > 0 && (
+            <div className="selection-bar">
+              <span className="selection-count">
+                {t('library.selectedCount', { count: selectedIds.length })}
+              </span>
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => startStreams(selectedIds)}
+              >
+                <Icon name="play" size={14} />
+                <span>{t('library.launchSelected')}</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {streams.length === 0 ? (
           <EmptyState onAdd={() => setStreamDialog({ mode: 'add' })} />
         ) : (
-          <div className="stream-grid" ref={gridRef}>
-            {streams.map((stream) => {
-              const size = tileSizes[stream.id]
-              const detached = detachedIds.includes(stream.id)
+          <div className="library-list" ref={libraryListRef}>
+            {streams.map((stream) => (
+              <LibraryRow
+                key={stream.id}
+                stream={stream}
+                probing={view === 'library'}
+                running={runningIds.includes(stream.id)}
+                detached={detachedIds.includes(stream.id)}
+                selected={selectedIds.includes(stream.id)}
+                iceServers={iceServers}
+                onSelect={(id, selected) =>
+                  setSelectedIds((current) =>
+                    selected ? [...current, id] : current.filter((item) => item !== id)
+                  )
+                }
+                onToggle={toggleFromLibrary}
+                onDetach={(item) => void detachStream(item)}
+                onEdit={(item) => setStreamDialog({ mode: 'edit', stream: item })}
+                onRemove={requestRemoval}
+                onDragStart={() => setDraggedId(stream.id)}
+                onDragEnd={() => setDraggedId(null)}
+                onDrop={() => reorderStream(stream.id)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
 
-              return (
-                <div
-                  key={stream.id}
-                  className="sortable-stream"
-                  style={
-                    size
-                      ? {
-                          width: `${size.width}px`,
-                          maxWidth: 'none',
-                          flex: `0 0 ${size.width}px`,
-                          height: size.height
-                        }
-                      : undefined
-                  }
-                  draggable
-                  onDragStart={(event) => {
-                    const target = event.target as HTMLElement | null
-                    if (
-                      target?.closest(
-                        'button, input, video, .view-controls, .audio-controls, .video-container'
-                      )
-                    ) {
-                      event.preventDefault()
-                      return
+      <section className="workspace" hidden={view !== 'live'}>
+        <div className="section-heading">
+          <div>
+            <h2>{t('live.title')}</h2>
+            <p>{t('live.count', { count: liveIds.length })}</p>
+          </div>
+
+          {liveIds.length > 0 && (
+            <div className="live-toolbar">
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => autoFitLiveGrid()}
+                title={t('live.fitHint')}
+                aria-label={t('live.fitHint')}
+              >
+                <Icon name="grid" size={14} />
+                <span>{t('live.fit')}</span>
+              </button>
+              <button className="secondary-button danger" type="button" onClick={stopAllRunning}>
+                <Icon name="stop" size={13} />
+                <span>{t('live.stopAll')}</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {liveIds.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">
+              <Icon name="play" size={26} />
+            </div>
+            <h2>{t('live.empty.title')}</h2>
+            <p>{t('live.empty.body')}</p>
+            <button className="primary-button" type="button" onClick={() => setView('library')}>
+              {t('live.empty.action')}
+            </button>
+          </div>
+        ) : (
+          <div className="stream-grid" ref={liveGridRef}>
+            {streams
+              .filter((stream) => runningIds.includes(stream.id) || detachedIds.includes(stream.id))
+              .map((stream) => {
+                const size = tileSizes[stream.id]
+                const detached = detachedIds.includes(stream.id)
+
+                return (
+                  <div
+                    key={stream.id}
+                    className="sortable-stream"
+                    style={
+                      size
+                        ? {
+                            width: `${size.width}px`,
+                            maxWidth: 'none',
+                            flex: `0 0 ${size.width}px`,
+                            height: size.height
+                          }
+                        : undefined
                     }
-
-                    setDraggedId(stream.id)
-                  }}
-                  onDragEnd={() => setDraggedId(null)}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={() => reorderStream(stream.id)}
-                >
-                  {detached ? (
-                    <DetachedCard
-                      stream={stream}
-                      onReturn={(id) => void window.api.returnToApp(id)}
-                    />
-                  ) : (
-                    <StreamCard
-                      stream={stream}
-                      running={runningIds.includes(stream.id)}
-                      audio={getAudio(stream.id)}
-                      solo={unmutedIds.length === 1 && unmutedIds[0] === stream.id}
-                      size={size}
-                      aspectRatio={aspectRatios[stream.id]}
-                      iceServers={iceServers}
-                      onToggle={toggleStream}
-                      onUnavailable={stopStream}
-                      onRemove={requestRemoval}
-                      onEdit={(item) => setStreamDialog({ mode: 'edit', stream: item })}
-                      onDetach={(item) => void detachStream(item)}
-                      onAudioChange={updateAudio}
-                      onSolo={soloStream}
-                      onAspectRatio={(id, ratio) =>
-                        setAspectRatios((current) => ({ ...current, [id]: ratio }))
+                    draggable
+                    onDragStart={(event) => {
+                      const target = event.target as HTMLElement | null
+                      if (
+                        target?.closest(
+                          'button, input, video, .view-controls, .audio-controls, .video-container'
+                        )
+                      ) {
+                        event.preventDefault()
+                        return
                       }
-                      onResizeStart={startResize}
-                    />
-                  )}
-                </div>
-              )
-            })}
+
+                      setDraggedId(stream.id)
+                    }}
+                    onDragEnd={() => setDraggedId(null)}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={() => reorderStream(stream.id)}
+                  >
+                    {detached ? (
+                      <DetachedCard
+                        stream={stream}
+                        onReturn={(id) => void window.api.returnToApp(id)}
+                      />
+                    ) : (
+                      <StreamCard
+                        stream={stream}
+                        audio={getAudio(stream.id)}
+                        solo={unmutedIds.length === 1 && unmutedIds[0] === stream.id}
+                        size={size}
+                        aspectRatio={aspectRatios[stream.id]}
+                        iceServers={iceServers}
+                        onStop={stopStream}
+                        onUnavailable={stopStream}
+                        onDetach={(item) => void detachStream(item)}
+                        onAudioChange={updateAudio}
+                        onSolo={soloStream}
+                        onAspectRatio={(id, ratio) =>
+                          setAspectRatios((current) => ({ ...current, [id]: ratio }))
+                        }
+                        onResizeStart={startResize}
+                      />
+                    )}
+                  </div>
+                )
+              })}
           </div>
         )}
       </section>
