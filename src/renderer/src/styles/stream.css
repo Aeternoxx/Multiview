@@ -85,6 +85,8 @@
   background: rgb(10 12 18 / 72%);
   font-size: 12px;
   pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.2s ease;
 }
 
 .live-name-text {
@@ -92,13 +94,6 @@
   color: #eef1f7;
   font-weight: 600;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.live-status {
-  flex-shrink: 0;
-  color: #9aa3b5;
-  font-size: 11px;
   white-space: nowrap;
 }
 
@@ -312,6 +307,28 @@
 
 .video-container:hover .audio-controls,
 .video-container:has(:focus-visible) .audio-controls {
+  opacity: 1;
+}
+
+/*
+ * In fullscreen the container covers the whole screen: the cursor never
+ * leaves it and hover would keep every overlay up forever. The name and the
+ * action buttons only come back when the pointer crosses the top of the
+ * zone (fs-top), the audio controls only when it crosses the bottom
+ * (fs-bottom) — see handlePointerMove in StreamCard.tsx.
+ */
+.video-container:fullscreen .view-controls,
+.video-container:fullscreen .audio-controls,
+.video-container:fullscreen .live-name {
+  opacity: 0;
+}
+
+.video-container:fullscreen.fs-top .view-controls,
+.video-container:fullscreen.fs-top .live-name {
+  opacity: 1;
+}
+
+.video-container:fullscreen.fs-bottom .audio-controls {
   opacity: 1;
 }
 

@@ -109,6 +109,7 @@ export function StreamCard({
   const [hasVideo, setHasVideo] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showStats, setShowStats] = useState(false)
+  const fsHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const video = videoRef.current
@@ -123,6 +124,54 @@ export function StreamCard({
     document.addEventListener('fullscreenchange', onChange)
     return () => document.removeEventListener('fullscreenchange', onChange)
   }, [])
+
+  const clearFsEdge = useCallback((): void => {
+    if (fsHideTimerRef.current) {
+      clearTimeout(fsHideTimerRef.current)
+      fsHideTimerRef.current = null
+    }
+    containerRef.current?.classList.remove('fs-top', 'fs-bottom')
+  }, [])
+
+  useEffect(() => {
+    // Entering or leaving fullscreen: start with every overlay hidden.
+    clearFsEdge()
+  }, [isFullscreen, clearFsEdge])
+
+  useEffect(() => () => clearFsEdge(), [clearFsEdge])
+
+  const scheduleFsHide = (): void => {
+    if (fsHideTimerRef.current) clearTimeout(fsHideTimerRef.current)
+    // Open stats panels stay visible: the user asked for them, they go away
+    // with their own button.
+    if (showStats) return
+    fsHideTimerRef.current = setTimeout(clearFsEdge, 2500)
+  }
+
+  /*
+   * In fullscreen the container covers the whole screen: CSS hover can no
+   * longer hide the overlays on its own. The stream name and the action
+   * buttons only come back when the mouse crosses the top of the zone, the
+   * audio controls only when it crosses the bottom.
+   */
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    const container = containerRef.current
+    if (!container || !isFullscreen) return
+
+    const target = event.target as HTMLElement | null
+    if (target?.closest('.view-controls, .audio-controls, .stats-panel')) {
+      scheduleFsHide()
+      return
+    }
+
+    const rect = container.getBoundingClientRect()
+    const band = Math.max(90, Math.round(rect.height * 0.18))
+    const y = event.clientY - rect.top
+
+    container.classList.toggle('fs-top', y <= band)
+    container.classList.toggle('fs-bottom', y >= rect.height - band)
+    scheduleFsHide()
+  }
 
   const dotState: Availability =
     status === 'live' ? 'online' : status === 'error' ? 'offline' : 'checking'
@@ -142,6 +191,7 @@ export function StreamCard({
         className={`video-container${size ? ' sized-video-container' : ''}`}
         style={!size && aspectRatio ? { aspectRatio: String(aspectRatio) } : undefined}
         ref={containerRef}
+        onPointerMove={handlePointerMove}
       >
         <video
           ref={videoRef}
@@ -165,7 +215,6 @@ export function StreamCard({
         <div className="live-name">
           <span className={`availability-dot ${dotState}`} title={t(availabilityLabel(dotState))} />
           <span className="live-name-text">{stream.name}</span>
-          <span className="live-status">{t(statusKey(status))}</span>
         </div>
 
         {(!hasVideo || status !== 'live') && (

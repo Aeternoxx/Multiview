@@ -11,6 +11,8 @@ type UseStreamAvailabilityOptions = {
   url: string
   enabled: boolean
   iceServers: RTCIceServer[]
+  /** Changing this value re-runs the probe right away (manual refresh). */
+  refreshTick?: number
 }
 
 const OFFLINE_INTERVAL_MS = 30_000
@@ -25,7 +27,8 @@ const HIDDEN_INTERVAL_MS = 15_000
 export function useStreamAvailability({
   url,
   enabled,
-  iceServers
+  iceServers,
+  refreshTick = 0
 }: UseStreamAvailabilityOptions): Availability {
   const availability = useSyncExternalStore(
     subscribeAvailability,
@@ -83,7 +86,7 @@ export function useStreamAvailability({
       if (timer) clearTimeout(timer)
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }
-  }, [url, enabled, iceKey])
+  }, [url, enabled, iceKey, refreshTick])
 
   return availability
 }

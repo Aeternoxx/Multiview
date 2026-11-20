@@ -120,10 +120,22 @@
 
 /* ---------- Library ---------- */
 
+.library-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Launch row shown between the heading and the list: the row is permanent
+   while streams exist (launch buttons disabled when nothing is selected),
+   so the heading buttons and the list never move. */
 .selection-bar {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
+  margin: -8px 0 16px;
 }
 
 .selection-count {

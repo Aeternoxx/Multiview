@@ -11,7 +11,6 @@ type SettingsDialogProps = {
   onIceChange: (config: IceConfig) => void
   onExport: () => void
   onImport: () => void
-  onResetLayout: () => void
 }
 
 export function SettingsDialog({
@@ -21,8 +20,7 @@ export function SettingsDialog({
   onClose,
   onIceChange,
   onExport,
-  onImport,
-  onResetLayout
+  onImport
 }: SettingsDialogProps): React.JSX.Element | null {
   const { t } = useI18n()
 
@@ -109,11 +107,7 @@ export function SettingsDialog({
             <button className="secondary-button" onClick={onImport}>
               {t('settings.data.import')}
             </button>
-            <button className="secondary-button danger" onClick={onResetLayout}>
-              {t('settings.data.reset')}
-            </button>
           </div>
-          <p className="modal-hint">{t('settings.data.resetHint')}</p>
           {notice && <p className="modal-notice">{notice}</p>}
         </section>
       </div>

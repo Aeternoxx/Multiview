@@ -71,6 +71,11 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.primary-button:disabled,
+.secondary-button:disabled {
+  opacity: 0.45;
+}
+
 button:focus-visible,
 input:focus-visible,
 a:focus-visible {

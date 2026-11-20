@@ -12,6 +12,8 @@ type LibraryRowProps = {
   detached: boolean
   selected: boolean
   iceServers: RTCIceServer[]
+  /** Bumped by the "Refresh" button to re-probe every stopped stream now. */
+  refreshTick: number
   onSelect: (id: string, selected: boolean) => void
   onToggle: (id: string) => void
   onDetach: (stream: Stream) => void
@@ -40,6 +42,7 @@ export function LibraryRow({
   detached,
   selected,
   iceServers,
+  refreshTick,
   onSelect,
   onToggle,
   onDetach,
@@ -57,7 +60,8 @@ export function LibraryRow({
   const availability = useStreamAvailability({
     url: stream.url,
     enabled: probing && !active,
-    iceServers
+    iceServers,
+    refreshTick
   })
 
   const dotState: Availability = active ? 'online' : availability

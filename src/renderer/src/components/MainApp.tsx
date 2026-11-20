@@ -12,6 +12,7 @@ import { usePersistentState } from '../hooks/usePersistentState'
 import { useUpdateCheck } from '../hooks/useUpdateCheck'
 import { newStreamId } from '../lib/id'
 import { getAvailability } from '../lib/availability'
+import { clearProbeCache } from '../lib/probe'
 import { DEFAULT_ICE_CONFIG, parseIceConfig, toIceServers, type IceConfig } from '../lib/ice'
 import {
   DEFAULT_AUDIO,
@@ -85,6 +86,7 @@ export function MainApp(): React.JSX.Element {
   const [notice, setNotice] = useState('')
   const [appState, setAppState] = useState<AppState>({ version: '' })
   const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [availabilityTick, setAvailabilityTick] = useState(0)
   const libraryListRef = useRef<HTMLDivElement>(null)
   const liveGridRef = useRef<HTMLDivElement>(null)
   const pendingFitRef = useRef(false)
@@ -418,6 +420,52 @@ export function MainApp(): React.JSX.Element {
     }
   }
 
+  /**
+   * Launches the selected streams directly as floating miniatures (one
+   * window per stream) instead of in the Live view grid.
+   */
+  const startAsMiniatures = async (ids: string[]): Promise<void> => {
+    const toOpen = ids.filter((id) => {
+      if (detachedIds.includes(id) || runningIds.includes(id)) return false
+
+      const stream = streams.find((item) => item.id === id)
+      return stream !== undefined && getAvailability(stream.url) === 'online'
+    })
+
+    if (toOpen.length === 0) return
+
+    setSelectedIds((current) => current.filter((item) => !toOpen.includes(item)))
+
+    for (const id of toOpen) {
+      const stream = streams.find((item) => item.id === id)
+      if (stream) await detachStream(stream)
+    }
+  }
+
+  /** « Tout cocher »: the selection picks up every checkable stream. */
+  const selectAllAvailable = (): void => {
+    setSelectedIds((current) => {
+      const next = [...current]
+
+      for (const stream of streams) {
+        if (runningIds.includes(stream.id) || detachedIds.includes(stream.id)) continue
+        if (getAvailability(stream.url) !== 'online') continue
+        if (!next.includes(stream.id)) next.push(stream.id)
+      }
+
+      return next
+    })
+  }
+
+  /**
+   * Drops the cached probe results and restarts the probe loop of every
+   * stopped stream: the states shown become the ground truth at once.
+   */
+  const refreshAvailability = (): void => {
+    clearProbeCache()
+    setAvailabilityTick((current) => current + 1)
+  }
+
   const reorderStream = (targetId: string): void => {
     if (!draggedId || draggedId === targetId) return
 
@@ -513,7 +561,6 @@ export function MainApp(): React.JSX.Element {
   const resetLayout = (): void => {
     setTileSizes({})
     void window.api.resetWindowLayout()
-    setNotice(t('settings.notice.reset'))
   }
 
   return (
@@ -554,22 +601,71 @@ export function MainApp(): React.JSX.Element {
             <p>{t('library.count', { count: streams.length })}</p>
           </div>
 
-          {selectedIds.length > 0 && (
-            <div className="selection-bar">
-              <span className="selection-count">
-                {t('library.selectedCount', { count: selectedIds.length })}
-              </span>
+          {streams.length > 0 && (
+            <div className="library-actions">
               <button
-                className="primary-button"
+                className="secondary-button"
                 type="button"
-                onClick={() => startStreams(selectedIds)}
+                onClick={selectAllAvailable}
+                title={t('library.selectAllHint')}
+                aria-label={t('library.selectAllHint')}
               >
-                <Icon name="play" size={14} />
-                <span>{t('library.launchSelected')}</span>
+                <Icon name="check" size={14} />
+                <span>{t('library.selectAll')}</span>
+              </button>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => setSelectedIds([])}
+                title={t('library.clearSelectionHint')}
+                aria-label={t('library.clearSelectionHint')}
+              >
+                <Icon name="close" size={14} />
+                <span>{t('library.clearSelection')}</span>
+              </button>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={refreshAvailability}
+                title={t('library.refreshHint')}
+                aria-label={t('library.refreshHint')}
+              >
+                <Icon name="refresh" size={14} />
+                <span>{t('library.refresh')}</span>
               </button>
             </div>
           )}
         </div>
+
+        {/* Launch row under the heading: the row is permanent while streams
+            exist (launch buttons disabled with an empty selection), so the
+            heading buttons and the list never move. */}
+        {streams.length > 0 && (
+          <div className="selection-bar">
+            <span className="selection-count">
+              {t('library.selectedCount', { count: selectedIds.length })}
+            </span>
+            <button
+              className="primary-button"
+              type="button"
+              disabled={selectedIds.length === 0}
+              onClick={() => startStreams(selectedIds)}
+            >
+              <Icon name="play" size={14} />
+              <span>{t('library.launchLive')}</span>
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={selectedIds.length === 0}
+              onClick={() => void startAsMiniatures(selectedIds)}
+              title={t('library.launchMiniHint')}
+            >
+              <Icon name="detach" size={14} />
+              <span>{t('library.launchMini')}</span>
+            </button>
+          </div>
+        )}
 
         {streams.length === 0 ? (
           <EmptyState onAdd={() => setStreamDialog({ mode: 'add' })} />
@@ -584,6 +680,7 @@ export function MainApp(): React.JSX.Element {
                 detached={detachedIds.includes(stream.id)}
                 selected={selectedIds.includes(stream.id)}
                 iceServers={iceServers}
+                refreshTick={availabilityTick}
                 onSelect={(id, selected) =>
                   setSelectedIds((current) =>
                     selected ? [...current, id] : current.filter((item) => item !== id)
@@ -620,6 +717,16 @@ export function MainApp(): React.JSX.Element {
               >
                 <Icon name="grid" size={14} />
                 <span>{t('live.fit')}</span>
+              </button>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={resetLayout}
+                title={t('live.resetHint')}
+                aria-label={t('live.resetHint')}
+              >
+                <Icon name="refresh" size={14} />
+                <span>{t('live.reset')}</span>
               </button>
               <button className="secondary-button danger" type="button" onClick={stopAllRunning}>
                 <Icon name="stop" size={13} />
@@ -721,7 +828,6 @@ export function MainApp(): React.JSX.Element {
         onIceChange={setIce}
         onExport={() => void exportStreams()}
         onImport={() => void importStreams()}
-        onResetLayout={resetLayout}
       />
 
       {pendingRemoval && (
