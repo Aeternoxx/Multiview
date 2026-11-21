@@ -9,7 +9,7 @@ import {
 import type { AppState, AudioState, Stream } from '@shared/types'
 import { useI18n, type TranslationKey } from '../i18n'
 import { usePersistentState } from '../hooks/usePersistentState'
-import { useUpdateCheck } from '../hooks/useUpdateCheck'
+import { useUpdate } from '../hooks/useUpdate'
 import { newStreamId } from '../lib/id'
 import { getAvailability } from '../lib/availability'
 import { clearProbeCache } from '../lib/probe'
@@ -90,7 +90,7 @@ export function MainApp(): React.JSX.Element {
   const libraryListRef = useRef<HTMLDivElement>(null)
   const liveGridRef = useRef<HTMLDivElement>(null)
   const pendingFitRef = useRef(false)
-  const update = useUpdateCheck()
+  const update = useUpdate()
 
   const iceServers = useMemo(() => toIceServers(ice), [ice])
 

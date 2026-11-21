@@ -21,6 +21,7 @@ MultiView is a Windows desktop application built with Electron, React, and TypeS
 - **Manual playback** — Start streams whenever you're ready, individually or all at once.
 - **Local storage** — Your saved stream sources stay on your computer.
 - **Game-safe overlay** — Pinned floating windows become click-through as soon as another application (a game) has the focus, so the mouse and keyboard stay with the game. Bring MultiView back to the front to interact with them again.
+- **Built-in updates** — An installed copy downloads new releases in the background and only applies them when you say so.
 
 > **Note:** Some games running in exclusive fullscreen mode may appear above floating windows. This is a Windows limitation: no overlay can be drawn over exclusive fullscreen, whatever the privileges of the application. Borderless fullscreen is recommended. Some anti-cheat protected games (Valorant/Vanguard for instance) also block third-party overlays by design.
 
@@ -41,7 +42,7 @@ MultiView already requests the smallest possible playout buffer and only raises 
 
 **[Download the latest release](https://github.com/Aeternoxx/MultiView/releases/latest)**
 
-Choose the Windows installer or the portable version, if available in the release.
+Download `MultiView-<version>-setup.exe`: it installs for your user only and needs no administrator rights. MultiView then keeps itself current — new releases download in the background and are installed only when you click the update pill in the footer.
 
 ## 🚀 Getting started
 
@@ -125,6 +126,7 @@ MultiView est une application Windows développée avec Electron, React et TypeS
 - **Lecture manuelle** — Lance les flux quand tu le souhaites, individuellement ou tous à la fois.
 - **Stockage local** — Les sources enregistrées restent sur ton ordinateur.
 - **Overlay compatible jeu** — Les fenêtres flottantes épinglées deviennent transparentes aux clics dès qu'une autre application (un jeu) a le focus : la souris et le clavier restent au jeu. Ramène MultiView au premier plan pour les manipuler à nouveau.
+- **Mises à jour intégrées** — Une copie installée télécharge les nouvelles versions en arrière-plan et ne les applique que sur ton feu vert.
 
 > **À noter :** Certains jeux en plein écran exclusif peuvent passer devant les fenêtres flottantes. C'est une limite de Windows : aucun overlay ne peut être affiché par-dessus le plein écran exclusif, quels que soient les privilèges de l'application. Le mode plein écran sans bordure est recommandé. Certains jeux protégés par un anti-cheat (Valorant/Vanguard par exemple) bloquent aussi les overlays tiers par conception.
 
@@ -145,7 +147,7 @@ MultiView demande déjà le plus petit tampon de lecture possible et ne l'augmen
 
 **[Télécharger la dernière version](https://github.com/Aeternoxx/MultiView/releases/latest)**
 
-Choisis l'installateur Windows ou la version portable, si elle est disponible dans la release.
+Télécharge `MultiView-<version>-setup.exe` : il s'installe pour ton utilisateur uniquement et ne demande pas de droits administrateur. MultiView reste ensuite à jour tout seul : les nouvelles versions se téléchargent en arrière-plan et ne sont installées que quand tu cliques sur la pastille de mise à jour dans le pied de page.
 
 ## 🚀 Prise en main
 

@@ -350,6 +350,53 @@
   box-shadow: 0 0 6px var(--accent-soft);
 }
 
+/* Downloading: a readout, nothing to click. */
+.footer .update-pill.is-busy {
+  cursor: default;
+}
+
+.footer .update-pill.is-busy:hover {
+  border-color: rgba(101, 88, 232, 0.55);
+  background: rgba(101, 88, 232, 0.16);
+  color: #b6aefe;
+}
+
+/* Installer on disk: the one click that applies the update. */
+.footer .update-pill.is-ready {
+  border-color: rgba(53, 208, 127, 0.55);
+  background: rgba(53, 208, 127, 0.14);
+  color: #9ff0c6;
+}
+
+.footer .update-pill.is-ready:hover {
+  border-color: var(--ok);
+  background: rgba(53, 208, 127, 0.26);
+  color: var(--text);
+}
+
+.footer .update-pill.is-ready .update-pill-dot {
+  background: var(--ok);
+  box-shadow: 0 0 6px var(--ok);
+}
+
+/* The updater gave up: clicking opens the release page instead. */
+.footer .update-pill.is-error {
+  border-color: rgba(230, 182, 76, 0.5);
+  background: rgba(230, 182, 76, 0.12);
+  color: #f0d9a2;
+}
+
+.footer .update-pill.is-error:hover {
+  border-color: var(--warn);
+  background: rgba(230, 182, 76, 0.22);
+  color: var(--text);
+}
+
+.footer .update-pill.is-error .update-pill-dot {
+  background: var(--warn);
+  box-shadow: 0 0 6px var(--warn);
+}
+
 .footer-tech {
   color: var(--text-dim);
 }

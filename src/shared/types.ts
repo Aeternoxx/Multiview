@@ -39,13 +39,19 @@ export type AppState = {
   version: string
 }
 
-export type UpdateInfo = {
+/** Where the auto-updater currently is; drives the footer pill. */
+export type UpdatePhase = 'idle' | 'available' | 'downloading' | 'ready' | 'error'
+
+export type UpdateState = {
+  phase: UpdatePhase
   /** Published version, without the leading `v` (for example `1.2.5`). */
   version: string
-  /** Direct link to the Windows installer when the release ships one. */
-  downloadUrl: string | null
-  /** Release page, always available as a fallback. */
+  /** Download progress in percent, `0` while nothing moves. */
+  percent: number
+  /** Release page: the way out whenever the updater cannot do the install. */
   releaseUrl: string
+  /** Why the last attempt failed, shown in the pill tooltip only. */
+  error: string | null
 }
 
 export const STREAM_ID_MAX_LENGTH = 120

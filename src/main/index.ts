@@ -6,7 +6,13 @@ import { STREAM_NAME_MAX_LENGTH } from '../shared/types'
 import type { AudioState, ImportedStreams, Stream, StreamWindowPayload } from '../shared/types'
 import { relaxFetchMetadata } from './network'
 import { flushSettings, resetLayout } from './settings'
-import { checkForUpdate, openUpdate } from './updates'
+import {
+  checkForUpdate,
+  initAutoUpdater,
+  installUpdate,
+  openReleasePage,
+  stopAutoUpdater
+} from './updater'
 import {
   closeAllStreamWindows,
   closeStreamWindow,
@@ -194,7 +200,15 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('check-for-update', () => checkForUpdate())
 
-  ipcMain.handle('open-update', () => openUpdate())
+  ipcMain.handle('install-update', () => {
+    // Nothing is ever installed without this click. NSIS then replaces the
+    // files under a running process and relaunches it, so the layout must
+    // already be on disk rather than waiting for `before-quit`.
+    flushSettings()
+    installUpdate()
+  })
+
+  ipcMain.handle('open-release-page', () => openReleasePage())
 }
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
@@ -225,6 +239,9 @@ if (!hasSingleInstanceLock) {
     })
 
     createMainWindow()
+    // Started after the window exists: the very first check is already in
+    // flight by the time the renderer asks for the state.
+    initAutoUpdater((state) => sendToMain('update-state', state))
 
     app.on('activate', () => {
       if (!getMainWindow()) createMainWindow()
@@ -232,6 +249,7 @@ if (!hasSingleInstanceLock) {
   })
 
   app.on('before-quit', () => {
+    stopAutoUpdater()
     flushSettings()
   })
 

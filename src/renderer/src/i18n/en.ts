@@ -122,6 +122,11 @@ export const en: Record<keyof typeof fr, string> = {
   'settings.notice.importFailed': 'No stream imported.',
   'footer.language': 'Language',
   'footer.update': 'Update {version} available',
-  'footer.updateHint': 'Download and install the new version',
+  'footer.updateHint': 'The update downloads in the background',
+  'footer.updateDownloading': 'Downloading version {version} ({percent}%)',
+  'footer.updateRestart': 'Restart for version {version}',
+  'footer.updateRestartHint': 'Installs the update then relaunches MultiView',
+  'footer.updateFailed': 'Update failed, install it manually',
+  'footer.updateFailedHint': 'Open the releases page to download it yourself',
   'footer.support': 'Ko-fi'
 }

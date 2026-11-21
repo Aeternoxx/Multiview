@@ -120,7 +120,12 @@ export const fr = {
   'settings.notice.importFailed': 'Aucun flux importé.',
   'footer.language': 'Langue',
   'footer.update': 'Mise à jour {version} disponible',
-  'footer.updateHint': 'Télécharger et installer la nouvelle version',
+  'footer.updateHint': 'La mise à jour se télécharge en arrière-plan',
+  'footer.updateDownloading': 'Téléchargement de la version {version} ({percent} %)',
+  'footer.updateRestart': 'Redémarrer pour la version {version}',
+  'footer.updateRestartHint': 'Installe la mise à jour puis relance MultiView',
+  'footer.updateFailed': 'Mise à jour échouée, installation manuelle',
+  'footer.updateFailedHint': 'Ouvrir la page des versions pour télécharger soi-même',
   'footer.support': 'Ko-fi'
 } as const
 

@@ -15,19 +15,20 @@ asarUnpack:
 win:
   executableName: MultiView
   icon: build/icon.ico
-  # Fallback name, only used by the `zip` target (it has no config section of its
-  # own): MultiView-<version>-portable.zip. The installer and the single-file
-  # portable exe declare their own names below.
-  artifactName: ${productName}-${version}-portable.${ext}
+  # One artifact only: it is what the in-app updater knows how to replace, and
+  # the per-user one-click install below needs no administrator rights.
   target:
     - nsis
-    - portable
-    - zip
 nsis:
   artifactName: ${productName}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+  # Pinned because the in-app updater relies on them: a one-click per-user
+  # install needs no elevation to replace itself, and electron-updater reads
+  # the install directory back from that per-user uninstall entry.
+  oneClick: true
+  perMachine: false
   # Registry key of the uninstall entry
   # (HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\<guid>). Pinned on
   # purpose: electron-builder derives it from appId, so a future appId change
@@ -36,8 +37,6 @@ nsis:
   guid: b1bf15be-c8e2-5ca5-aaea-3f91a0633882
   # Removes the uninstall entry left by builds that predate the current appId.
   include: build/installer.nsh
-portable:
-  artifactName: ${productName}-${version}-portable.${ext}
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   category: public.app-category.video
