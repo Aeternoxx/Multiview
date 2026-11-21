@@ -45,4 +45,8 @@ jobs:
           generate_release_notes: true
           files: |
             dist/*.exe
+            # Not optional any more: electron-updater fetches this asset right
+            # next to the installer, and without it there is no differential
+            # download — every update would take the full package.
+            dist/*.blockmap
             dist/latest.yml
