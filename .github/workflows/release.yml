@@ -22,6 +22,22 @@ jobs:
 
       - run: npm ci
 
+      # Release notes are written in the repo, named after the tag. GitHub has
+      # nothing to generate for this repository — the commits go straight to
+      # main, with no pull requests to list — so a bare tag would otherwise
+      # publish a release that says nothing.
+      - name: Pick the release notes
+        id: notes
+        shell: bash
+        run: |
+          notes="docs/release-notes/${GITHUB_REF_NAME}.md"
+          if [ -f "$notes" ]; then
+            cp "$notes" release-notes.md
+            echo "file=release-notes.md" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::no ${notes}: this release will only carry the commit list"
+          fi
+
       # softprops/action-gh-release publishes the assets below. electron-builder
       # would otherwise try to publish by itself because it detects the git tag
       # and the GitHub remote, then fail without a GH_TOKEN.
@@ -37,16 +53,26 @@ jobs:
             dist/*.blockmap
             dist/latest.yml
 
+      # `body_path` and `generate_release_notes` cannot be combined, so the two
+      # cases are two steps: the only difference between them is the text.
       - uses: softprops/action-gh-release@v2
+        if: ${{ steps.notes.outputs.file != '' }}
         with:
           name: MultiView ${{ github.ref_name }}
-          # Publishes straight away with a generated changelog: no manual click
-          # and no personal token needed, the workflow token is enough.
+          body_path: ${{ steps.notes.outputs.file }}
+          files: |
+            dist/*.exe
+            dist/*.blockmap
+            dist/latest.yml
+
+      - uses: softprops/action-gh-release@v2
+        if: ${{ steps.notes.outputs.file == '' }}
+        with:
+          name: MultiView ${{ github.ref_name }}
+          # No notes were written for this tag. Publish anyway rather than
+          # leave the tag with no downloadable release at all.
           generate_release_notes: true
           files: |
             dist/*.exe
-            # Not optional any more: electron-updater fetches this asset right
-            # next to the installer, and without it there is no differential
-            # download — every update would take the full package.
             dist/*.blockmap
             dist/latest.yml

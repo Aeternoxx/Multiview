@@ -81,6 +81,20 @@ Useful commands:
 | `npm run format:check` | Check formatting with Prettier        |
 | `npm run build:win`    | Build the Windows installers          |
 
+### Releasing
+
+1. Bump `version` in `package.json`.
+2. Write the notes as `docs/release-notes/v<version>.md` — copy `TEMPLATE.md`. That file is what the release page shows; GitHub generates nothing useful for a repository whose commits arrive without pull requests.
+3. Commit as `Release v<version>: <summary>`, then push and tag:
+
+   ```bash
+   git push origin main
+   git tag v<version>
+   git push origin v<version>
+   ```
+
+The tag runs the Release workflow: it builds the installer, publishes it with its blockmap and `latest.yml`, and posts the notes. Installed copies of MultiView then see the new version within six hours, download it, and wait for one click to install it.
+
 ## 🔒 Privacy
 
 Saved stream sources are stored locally. Stream URLs may contain private information or access tokens, so remove sensitive data before sharing logs, screenshots, or bug reports.
@@ -185,6 +199,20 @@ Commandes utiles :
 | `npm run lint`         | Lance ESLint                                         |
 | `npm run format:check` | Vérifie le formatage avec Prettier                   |
 | `npm run build:win`    | Génère les installateurs Windows                     |
+
+### Publier une version
+
+1. Augmente `version` dans `package.json`.
+2. Écris les notes dans `docs/release-notes/v<version>.md` — copie `TEMPLATE.md`. C'est ce fichier qui s'affiche sur la page de la release ; GitHub ne génère rien d'utile sur un dépôt dont les commits arrivent sans pull requests.
+3. Committe en `Release v<version> : <résumé>`, puis pousse et tague :
+
+   ```bash
+   git push origin main
+   git tag v<version>
+   git push origin v<version>
+   ```
+
+Le tag déclenche le workflow Release : il compile l'installeur, le publie avec son blockmap et `latest.yml`, et dépose les notes. Les copies installées de MultiView voient alors la nouvelle version sous six heures, la téléchargent, puis attendent un clic pour l'installer.
 
 ## 🔒 Confidentialité
 

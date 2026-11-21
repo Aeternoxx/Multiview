@@ -5,6 +5,8 @@ directories:
 files:
   - '!**/.vscode/*'
   - '!src/*'
+  # Release notes belong on the release page, not inside the packaged app.
+  - '!docs/**'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
