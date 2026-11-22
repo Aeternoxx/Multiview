@@ -42,6 +42,7 @@ export function PopupApp({ params }: PopupAppProps): React.JSX.Element {
   const [pinned, setPinned] = useState(params.get('streamPinned') !== '0')
   const [showStats, setShowStats] = useState(false)
   const [hovered, setHovered] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
   const [clickThrough, setClickThrough] = useState(false)
 
   const { status, error, stats, retry } = useWhepPlayer({
@@ -57,12 +58,18 @@ export function PopupApp({ params }: PopupAppProps): React.JSX.Element {
 
   // The whole window is a native drag region, so hover is reported by the main
   // process (see pollStreamWindowHover) instead of relying on mouse events.
+  // In fullscreen, the main process only lights the controls when the cursor
+  // crosses the top or bottom band, and fades them out again when it rests.
   useEffect(() => window.api.onStreamWindowHover(setHovered), [])
 
   // The main process turns the window click-through while another application
   // owns the focus. The controls are then unreachable, so they are replaced by
   // a lock badge instead of being shown as if they were clickable.
   useEffect(() => window.api.onStreamWindowPointerMode(setClickThrough), [])
+
+  // The whole window is the fullscreen surface: the page never sees a
+  // fullscreenElement of its own, so the main process reports the state.
+  useEffect(() => window.api.onStreamWindowFullscreen(setFullscreen), [])
 
   useEffect(() => {
     const video = videoRef.current
@@ -168,10 +175,10 @@ export function PopupApp({ params }: PopupAppProps): React.JSX.Element {
               </button>
               <button
                 onClick={() => void window.api.toggleStreamWindowFullscreen(stream.id)}
-                title={t('stream.fullscreen')}
-                aria-label={t('stream.fullscreen')}
+                title={fullscreen ? t('stream.exitFullscreen') : t('stream.fullscreen')}
+                aria-label={fullscreen ? t('stream.exitFullscreen') : t('stream.fullscreen')}
               >
-                <Icon name="fullscreen" size={15} />
+                <Icon name={fullscreen ? 'exitFullscreen' : 'fullscreen'} size={15} />
               </button>
               <button
                 className="popup-close"

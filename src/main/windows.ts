@@ -12,6 +12,7 @@ type StreamWindowEntry = {
   returning: boolean
   hovered: boolean
   pinned: boolean
+  fullscreen: boolean
   /** Last click-through state sent to the renderer, to avoid redundant IPC. */
   clickThrough: boolean
 }
@@ -34,8 +35,21 @@ const HOVER_POLL_MS = 80
  */
 const FOCUS_DEBOUNCE_MS = 40
 
+/**
+ * Fullscreen miniatures hide their controls the way the live tiles do: the
+ * controls only surface in a band at the top or bottom of the screen, and
+ * fade again once the cursor has been still for a while.
+ */
+const FULLSCREEN_IDLE_HIDE_MS = 2500
+const FULLSCREEN_BAND_MIN = 90
+const FULLSCREEN_BAND_RATIO = 0.18
+
 let hoverTimer: ReturnType<typeof setInterval> | null = null
 let focusTimer: NodeJS.Timeout | null = null
+
+/** Cursor bookkeeping for the fullscreen hover bands (pollStreamWindowHover). */
+let lastCursor: { x: number; y: number } | null = null
+let lastCursorMovedAt = 0
 
 export function getMainWindow(): BrowserWindow | null {
   return mainWindow && !mainWindow.isDestroyed() ? mainWindow : null
@@ -133,6 +147,19 @@ function hardenWindow(window: BrowserWindow): void {
   })
 }
 
+/** True when at least a corner of the window would land on a live display. */
+function onScreen(bounds: { x: number; y: number; width: number; height: number }): boolean {
+  return screen
+    .getAllDisplays()
+    .some(
+      (display) =>
+        bounds.x < display.workArea.x + display.workArea.width &&
+        bounds.x + bounds.width > display.workArea.x &&
+        bounds.y < display.workArea.y + display.workArea.height &&
+        bounds.y + bounds.height > display.workArea.y
+    )
+}
+
 function safeBounds(
   bounds: { x?: number; y?: number; width: number; height: number } | undefined,
   fallback: { x?: number; y?: number; width: number; height: number }
@@ -141,19 +168,10 @@ function safeBounds(
     return { ...fallback, x: fallback.x ?? 80, y: fallback.y ?? 80 }
   }
 
-  const displays = screen.getAllDisplays()
   const x = Number.isFinite(bounds.x) ? (bounds.x as number) : 80
   const y = Number.isFinite(bounds.y) ? (bounds.y as number) : 80
 
-  const visible = displays.some(
-    (display) =>
-      x < display.workArea.x + display.workArea.width &&
-      x + bounds.width > display.workArea.x &&
-      y < display.workArea.y + display.workArea.height &&
-      y + bounds.height > display.workArea.y
-  )
-
-  return visible
+  return onScreen({ x, y, width: bounds.width, height: bounds.height })
     ? { x, y, width: Math.round(bounds.width), height: Math.round(bounds.height) }
     : { ...fallback, x: fallback.x ?? 80, y: fallback.y ?? 80 }
 }
@@ -233,12 +251,24 @@ export function setMainMinimumWidth(width: number): void {
   window.setMinimumSize(nextWidth, minHeight)
 }
 
+/**
+ * Saves the restored-state layout, never a transient one: minimized,
+ * maximized and fullscreen geometry must not come back as the "normal" size
+ * of the next miniature, and closing from the taskbar fires a last move with
+ * the window parked far off screen — the previous on-screen position is the
+ * one worth keeping.
+ */
 function persistStreamBounds(entry: StreamWindowEntry, id: string): void {
-  if (entry.window.isDestroyed()) return
+  const { window } = entry
+  if (window.isDestroyed()) return
+  if (window.isMinimized() || window.isMaximized() || window.isFullScreen()) return
+
+  const bounds = window.getBounds()
+  if (!onScreen(bounds)) return
 
   updateSettings((settings) => {
     settings.streams ??= {}
-    settings.streams[id] = entry.window.getBounds()
+    settings.streams[id] = bounds
   })
 }
 
@@ -250,6 +280,11 @@ function persistStreamBounds(entry: StreamWindowEntry, id: string): void {
 function enforceRatio(entry: StreamWindowEntry, id: string): void {
   const { window } = entry
   if (window.isDestroyed()) return
+
+  // In fullscreen the geometry belongs to the display: resizing it back to
+  // the video ratio would fight the transition, and its bounds are never a
+  // layout worth saving.
+  if (window.isFullScreen()) return
 
   const current = window.getBounds()
 
@@ -346,6 +381,7 @@ export function openStreamWindow(payload: StreamWindowPayload): void {
     returning: false,
     hovered: false,
     pinned,
+    fullscreen: false,
     clickThrough: false
   }
 
@@ -367,6 +403,22 @@ export function openStreamWindow(payload: StreamWindowPayload): void {
   window.on('move', () => persistStreamBounds(entry, payload.id))
   window.on('resize', () => enforceRatio(entry, payload.id))
   window.on('page-title-updated', (event) => event.preventDefault())
+
+  // Fullscreen is the one mode the frameless page cannot observe itself: the
+  // renderer is told so the button can show the matching icon, and the hover
+  // state is reset because the poll recomputes it from the fullscreen bands.
+  const reportFullscreen = (): void => {
+    const fullscreen = window.isFullScreen()
+    if (window.isDestroyed() || fullscreen === entry.fullscreen) return
+
+    entry.fullscreen = fullscreen
+    entry.hovered = false
+    window.webContents.send('stream-window-hover', false)
+    window.webContents.send('stream-window-fullscreen', fullscreen)
+  }
+
+  window.on('enter-full-screen', reportFullscreen)
+  window.on('leave-full-screen', reportFullscreen)
 
   // The renderer starts with no hover state: force the next poll to send it.
   window.webContents.on('did-finish-load', () => {
@@ -440,6 +492,10 @@ export function setStreamAspectRatio(id: string, ratio: number): void {
   const bounds = entry.window.getBounds()
   entry.lastBounds = bounds
 
+  // Keep the ratio while fullscreen, apply the geometry once the window is
+  // back to its chassis (the leave-full-screen resize runs enforceRatio).
+  if (entry.window.isFullScreen()) return
+
   const height = Math.max(180, Math.round(bounds.width / ratio))
   if (Math.abs(bounds.height - height) > 2) {
     entry.window.setBounds({ x: bounds.x, y: bounds.y, width: bounds.width, height })
@@ -491,9 +547,17 @@ export function forgetStreamLayout(id: string): void {
  * Frameless stream windows use a native `-webkit-app-region: drag` area, which
  * does not deliver mouse events to the page. The hover state of the popup
  * controls is therefore computed from the real cursor position.
+ *
+ * A fullscreen window swallows the whole screen: an inside test would keep
+ * the controls lit forever. There, like on the live tiles, the controls only
+ * surface in the top and bottom bands and fade while the cursor is still.
  */
 function pollStreamWindowHover(): void {
   const cursor = screen.getCursorScreenPoint()
+  if (!lastCursor || cursor.x !== lastCursor.x || cursor.y !== lastCursor.y) {
+    lastCursor = cursor
+    lastCursorMovedAt = Date.now()
+  }
 
   for (const entry of streamWindows.values()) {
     const { window } = entry
@@ -503,11 +567,25 @@ function pollStreamWindowHover(): void {
 
     if (window.isVisible() && !window.isMinimized()) {
       const bounds = window.getBounds()
-      hovered =
+      const inside =
         cursor.x >= bounds.x &&
         cursor.x < bounds.x + bounds.width &&
         cursor.y >= bounds.y &&
         cursor.y < bounds.y + bounds.height
+
+      if (inside) {
+        if (entry.fullscreen) {
+          const band = Math.max(
+            FULLSCREEN_BAND_MIN,
+            Math.round(bounds.height * FULLSCREEN_BAND_RATIO)
+          )
+          const nearEdge =
+            cursor.y <= bounds.y + band || cursor.y >= bounds.y + bounds.height - band
+          hovered = nearEdge && Date.now() - lastCursorMovedAt < FULLSCREEN_IDLE_HIDE_MS
+        } else {
+          hovered = true
+        }
+      }
     }
 
     if (hovered === entry.hovered) continue
@@ -525,4 +603,6 @@ function startHoverPolling(): void {
 function stopHoverPolling(): void {
   if (hoverTimer) clearInterval(hoverTimer)
   hoverTimer = null
+  lastCursor = null
+  lastCursorMovedAt = 0
 }

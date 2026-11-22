@@ -31,6 +31,7 @@ const api: MultiviewApi = {
   onStreamWindowReturned: (callback) => subscribe('stream-window-returned', callback),
   onStreamAudioUpdated: (callback) => subscribe('stream-audio-updated', callback),
   onStreamWindowHover: (callback) => subscribe('stream-window-hover', callback),
+  onStreamWindowFullscreen: (callback) => subscribe('stream-window-fullscreen', callback),
   onStreamWindowPointerMode: (callback) => subscribe('stream-window-pointer-mode', callback)
 }
 
