@@ -76,3 +76,17 @@ jobs:
             dist/*.exe
             dist/*.blockmap
             dist/latest.yml
+
+      # Each installer is ~117 MB and GitHub recommends staying under 1 GiB of
+      # release storage, so the backlog has to go. The updater only ever reads
+      # the newest release — delta updates diff against the previous installer
+      # cached on the user's machine — so every older asset is dead weight.
+      # The tags stay: the release notes link their compare ranges, and tags
+      # cost nothing.
+      - name: Trim old releases
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $old = gh api "repos/${{ github.repository }}/releases?per_page=100" --jq '[.[] | select(!.draft and !.prerelease)][3:] | .[].tag_name'
+          foreach ($tag in $old) { gh release delete $tag --yes }

@@ -93,7 +93,7 @@ Useful commands:
    git push origin v<version>
    ```
 
-The tag runs the Release workflow: it builds the installer, publishes it with its blockmap and `latest.yml`, and posts the notes. Installed copies of MultiView then see the new version within six hours, download it, and wait for one click to install it.
+The tag runs the Release workflow: it builds the installer, publishes it with its blockmap and `latest.yml`, and posts the notes. Older releases are trimmed automatically — only the three newest keep their assets, because installers are huge and GitHub expects a repository to stay near 1 GiB of release storage; the updater only reads the newest release anyway. The tags of trimmed releases stay, and installed copies of MultiView then see the new version within six hours, download it, and wait for one click to install it.
 
 ## 🔒 Privacy
 
