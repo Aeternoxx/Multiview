@@ -1,5 +1,7 @@
 out
 dist
+# Static GitHub Pages site: hand-written HTML/CSS/JS, not app source.
+docs/site
 pnpm-lock.yaml
 LICENSE.md
 tsconfig.json
