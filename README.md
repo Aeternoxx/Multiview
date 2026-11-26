@@ -20,6 +20,8 @@
 
 **[Download the latest release](https://github.com/Aeternoxx/MultiView/releases/latest)** — `MultiView-<version>-setup.exe` installs for your user only, with no administrator rights. Later versions then arrive on their own: downloaded in the background, installed on one click on the update pill.
 
+A [product page](https://aeternoxx.github.io/Multiview/) presents the same content in a browsable form; it reads the newest release from GitHub, so it stays current on its own.
+
 ## 🚀 Getting started
 
 1. Your friends share their OBS streams through a WHEP-compatible server, such as MediaMTX.
@@ -69,6 +71,8 @@ npm run dev
 
 The tag runs the Release workflow: it builds and publishes the installer with its blockmap and `latest.yml`, posts the notes, and trims every release but the three newest to their tags — installers are huge and the updater only reads the newest anyway. Installed copies see the new version within six hours and wait for one click to install it.
 
+The [product page](https://aeternoxx.github.io/Multiview/) needs no action here: it reads version, installer and download link from the GitHub API. Only push the `gh-pages` branch when the page itself changes — it is an orphan branch, unrelated to `main`.
+
 ## 🔒 Privacy
 
 Stream sources and the STUN/TURN settings you fill in stay in local storage on your machine, and TURN credentials are only ever sent to your own TURN server. Stream URLs may embed access tokens: strip them from logs, screenshots and bug reports.
@@ -104,6 +108,8 @@ No license has been specified yet; the code is not free to reuse, modify or redi
 ## 📥 Téléchargement
 
 **[Télécharger la dernière version](https://github.com/Aeternoxx/MultiView/releases/latest)** — `MultiView-<version>-setup.exe` s'installe pour ton utilisateur uniquement, sans droits administrateur. Les versions suivantes arrivent ensuite toutes seules : téléchargées en arrière-plan, installées en un clic sur la pastille de mise à jour.
+
+Une [page produit](https://aeternoxx.github.io/Multiview/) reprend le même contenu sous une forme consultable ; elle lit la dernière version sur GitHub, donc elle reste à jour toute seule.
 
 ## 🚀 Prise en main
 
@@ -153,6 +159,8 @@ npm run dev
    ```
 
 Le tag déclenche le workflow Release : il compile et publie l'installeur avec son blockmap et `latest.yml`, dépose les notes, et ne garde que les trois releases les plus récentes — les installeurs sont énormes et l'updater ne lit que la dernière. Les copies installées voient la nouvelle version sous six heures et attendent un clic pour l'installer.
+
+La [page produit](https://aeternoxx.github.io/Multiview/) n'a rien à faire ici : elle lit la version, l'installeur et le lien de téléchargement dans l'API GitHub. Ne pousse la branche `gh-pages` que quand la page elle-même change — c'est une branche isolée, sans lien avec `main`.
 
 ## 🔒 Confidentialité
 

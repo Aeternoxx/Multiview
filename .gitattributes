@@ -1,0 +1,9 @@
+# Every text file is stored and checked out with LF, on every platform.
+# Without this, a Windows checkout turns into CRLF and `npm run format:check`
+# reports every file, while the repository itself is already LF.
+* text=auto eol=lf
+
+# Never touch these.
+*.png binary
+*.ico binary
+*.icns binary
