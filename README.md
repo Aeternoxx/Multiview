@@ -14,7 +14,7 @@
 - **Library** — add, rename, remove and drag-reorder streams; select all, refresh availability, import and export.
 - **Built-in updates** — new releases download in the background and install only when you say so.
 
-![MultiView — multiple floating video streams](screenshots/multiview.png)
+![MultiView — multiple floating video streams](screenshots/multiview-live.png)(screenshots/multiview-bibli.png)
 
 ## 📥 Download
 
