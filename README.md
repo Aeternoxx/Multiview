@@ -14,7 +14,7 @@
 - **Library** — add, rename, remove and drag-reorder streams; select all, refresh availability, import and export.
 - **Built-in updates** — new releases download in the background and install only when you say so.
 
-![MultiView — multiple floating video streams](screenshots/multiview-live.png)(screenshots/multiview-bibli.png)
+![MultiView — multiple floating video streams](screenshots/multiview-live.png)
 
 ## 📥 Download
 
@@ -103,7 +103,7 @@ No license has been specified yet; the code is not free to reuse, modify or redi
 - **Bibliothèque** — ajoute, renomme, supprime et réordonne tes flux par glisser-déposer ; tout cocher, actualiser la disponibilité, importer et exporter.
 - **Mises à jour intégrées** — les nouvelles versions se téléchargent en arrière-plan et ne s'installent que sur ton feu vert.
 
-![MultiView — plusieurs flux vidéo flottants](screenshots/multiview.png)
+![MultiView — plusieurs flux vidéo flottants](screenshots/multiview-live.png)
 
 ## 📥 Téléchargement
 
